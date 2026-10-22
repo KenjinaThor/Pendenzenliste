@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSnackbar } from '../../components/Snackbar';
-import { useCompleteTask, useSetDone, useUpdateTask } from '../../lib/api';
+import { useCompleteTask, useUpdateTask } from '../../lib/api';
 import { formatDue, formatDay } from '../../lib/dates';
 import { STATUS_LABEL, type Status, type Task } from '../../lib/types';
 import { compareTasks, isOverdue } from '../../lib/views';
@@ -21,7 +21,6 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
   const { openTask } = useEditor();
   const perms = usePermissions();
   const update = useUpdateTask();
-  const setDone = useSetDone();
   const complete = useCompleteTask();
   const snackbar = useSnackbar();
   const [overColumn, setOverColumn] = useState<Status | null>(null);
@@ -40,12 +39,12 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
           }),
         (e: Error) => snackbar({ text: `Fehler: ${e.message}` }),
       );
-    } else if (task.status === 'done') {
-      void setDone(task, false).then(() =>
-        to === 'open' ? undefined : update.mutate({ id: task.id, patch: { status: to } }),
-      );
     } else {
-      update.mutate({ id: task.id, patch: { status: to } });
+      // aus «Erledigt» heraus wird die Pendenz zugleich wieder geöffnet
+      update.mutate({
+        id: task.id,
+        patch: { status: to, ...(task.status === 'done' ? { completed_at: null } : {}) },
+      });
     }
   }
 

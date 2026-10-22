@@ -16,7 +16,6 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   const perms = usePermissions();
   const writable = lists.filter((l) => perms.canEdit(l.id));
   const [text, setText] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   const people = useMemo(
     () => [
@@ -54,36 +53,28 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   );
   const disabled = !defaultList();
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     const list = parsed.listId ?? defaultList();
     if (!parsed.title || !list) return;
-    setError(null);
-    const input = text;
     setText('');
-    try {
-      const date = parsed.date ?? (today ? toDateInput(new Date()) : null);
-      const due = date ? buildDue(date, parsed.time ?? '') : null;
-      // Zuweisung nur, wenn die Person Mitglied der Liste ist
-      const assignee =
-        parsed.assigneeId &&
-        perms.membersOf(list).some((m) => m.user_id === parsed.assigneeId && m.role !== 'viewer')
-          ? parsed.assigneeId
-          : null;
-      const task = await create.mutateAsync({
-        list_id: list,
-        title: parsed.title,
-        ...(due ?? {}),
-        ...(parsed.priority ? { priority: parsed.priority } : {}),
-        ...(assignee ? { assignee_id: assignee } : {}),
-        ...(parsed.repeat ?? {}),
-      });
-      if (parsed.tags.length)
-        await setTags.mutateAsync({ taskId: task.id, listId: list, names: parsed.tags });
-    } catch (err) {
-      setText(input);
-      setError((err as Error).message);
-    }
+    const date = parsed.date ?? (today ? toDateInput(new Date()) : null);
+    const due = date ? buildDue(date, parsed.time ?? '') : null;
+    // Zuweisung nur, wenn die Person Mitglied der Liste ist
+    const assignee =
+      parsed.assigneeId &&
+      perms.membersOf(list).some((m) => m.user_id === parsed.assigneeId && m.role !== 'viewer')
+        ? parsed.assigneeId
+        : null;
+    const id = create({
+      list_id: list,
+      title: parsed.title,
+      ...(due ?? {}),
+      ...(parsed.priority ? { priority: parsed.priority } : {}),
+      ...(assignee ? { assignee_id: assignee } : {}),
+      ...(parsed.repeat ?? {}),
+    });
+    if (parsed.tags.length) setTags.mutate({ taskId: id, listId: list, names: parsed.tags });
   }
 
   return (
@@ -111,11 +102,6 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
       )}
       {text.trim() && !parsed.title && (
         <p className="mt-2 text-xs text-amber-700">Es fehlt noch ein Titel.</p>
-      )}
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
-          {error}
-        </p>
       )}
     </form>
   );

@@ -1,4 +1,21 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  onlineManager,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
+import {
+  MK,
+  type AddRemindersVars,
+  type AddSubtasksVars,
+  type CreateTaskVars,
+  type DeleteReminderVars,
+  type DeleteSubtaskVars,
+  type SetTagsVars,
+  type UpdateSubtaskVars,
+  type UpdateTaskVars,
+} from './mutations';
 import { isRecurring, nextOccurrence } from './recurrence';
 import { supabase } from './supabase';
 import type {
@@ -13,7 +30,6 @@ import type {
   Role,
   SavedFilter,
   Status,
-  Subtask,
   Tag,
   Task,
   TodoList,
@@ -128,6 +144,8 @@ export function useDeleteList() {
 }
 
 // ---------------------------------------------------------------- Pendenzen
+// Schreibzugriffe auf Pendenzen laufen über eine Warteschlange (siehe mutations.ts): Sie funktionieren ohne
+// Verbindung, die Anzeige ändert sich sofort («optimistisch»), und der Server entscheidet bei Konflikten pro Feld.
 export interface TaskInput {
   list_id: string;
   title: string;
@@ -145,60 +163,89 @@ export interface TaskInput {
 
 type TaskPatch = Partial<Omit<Task, 'id' | 'subtasks' | 'tags'>>;
 
+const newId = () => crypto.randomUUID();
+const nowIso = () => new Date().toISOString();
+
 function patchTask(qc: QueryClient, id: string, fn: (t: Task) => Task) {
   qc.setQueryData<Task[]>(keys.tasks, (old) => old?.map((t) => (t.id === id ? fn(t) : t)));
 }
 
-/** Optimistisches Update: Cache sofort ändern, bei Fehler zurückrollen. */
-function useOptimisticTaskUpdate() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TaskPatch }) => {
-      const { error } = await supabase.from('tasks').update(patch).eq('id', id);
-      if (error) throw error;
-    },
-    onMutate: async ({ id, patch }) => {
-      await qc.cancelQueries({ queryKey: keys.tasks });
-      const previous = qc.getQueryData<Task[]>(keys.tasks);
-      patchTask(qc, id, (t) => ({ ...t, ...patch }));
-      return { previous };
-    },
-    onError: (_e, _v, ctx) => qc.setQueryData(keys.tasks, ctx?.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.tasks }),
-  });
+/** Aufgabe mit den Standardwerten der Datenbank, für die sofortige Anzeige vor dem Speichern. */
+function draftTask(id: string, input: TaskInput): Task {
+  const now = nowIso();
+  return {
+    notes_md: '',
+    due_at: null,
+    due_all_day: false,
+    duration_min: null,
+    priority: 'medium',
+    status: 'open',
+    assignee_id: null,
+    rrule: null,
+    repeat_mode: 'fixed',
+    repeat_after_days: null,
+    focus_date: null,
+    completed_at: null,
+    deleted_at: null,
+    position: 0,
+    created_at: now,
+    updated_at: now,
+    subtasks: [],
+    tags: [],
+    ...input,
+    id,
+  };
 }
 
 export function useUpdateTask() {
-  return useOptimisticTaskUpdate();
+  const qc = useQueryClient();
+  const m = useMutation<void, Error, UpdateTaskVars, { previous?: Task[] }>({
+    mutationKey: MK.updateTask,
+    onMutate: (v) => {
+      void qc.cancelQueries({ queryKey: keys.tasks });
+      const previous = qc.getQueryData<Task[]>(keys.tasks);
+      if (v.patch.deleted_at)
+        qc.setQueryData<Task[]>(keys.tasks, (old) => old?.filter((t) => t.id !== v.id));
+      else patchTask(qc, v.id, (t) => ({ ...t, ...(v.patch as TaskPatch) }));
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(keys.tasks, ctx?.previous),
+  });
+  return {
+    mutate: (v: { id: string; patch: TaskPatch }) =>
+      m.mutate({ id: v.id, patch: v.patch, ts: nowIso() }),
+  };
 }
 
+/** Legt eine Pendenz an (Kennung wird sofort vergeben, damit Unteraufgaben usw. gleich darauf folgen können). */
 export function useCreateTask() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: TaskInput) => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert(input)
-        .select(TASK_SELECT)
-        .single();
-      if (error) throw error;
-      return sortSubtasks(data as Task);
+  const m = useMutation<void, Error, CreateTaskVars, { previous?: Task[] }>({
+    mutationKey: MK.createTask,
+    onMutate: (v) => {
+      void qc.cancelQueries({ queryKey: keys.tasks });
+      const previous = qc.getQueryData<Task[]>(keys.tasks);
+      qc.setQueryData<Task[]>(keys.tasks, (old) => [
+        ...(old ?? []),
+        draftTask(v.task.id, v.task as unknown as TaskInput),
+      ]);
+      return { previous };
     },
-    onSuccess: (task) => {
-      qc.setQueryData<Task[]>(keys.tasks, (old) => [...(old ?? []), task]);
-    },
+    onError: (_e, _v, ctx) => qc.setQueryData(keys.tasks, ctx?.previous),
   });
+  return (input: TaskInput): string => {
+    const id = newId();
+    m.mutate({ task: { ...input, id } });
+    return id;
+  };
 }
 
 export function useSetDone() {
-  const update = useOptimisticTaskUpdate();
+  const update = useUpdateTask();
   return (task: Task, done: boolean) =>
-    update.mutateAsync({
+    update.mutate({
       id: task.id,
-      patch: {
-        status: done ? 'done' : 'open',
-        completed_at: done ? new Date().toISOString() : null,
-      },
+      patch: { status: done ? 'done' : 'open', completed_at: done ? nowIso() : null },
     });
 }
 
@@ -209,8 +256,8 @@ export interface CompletionResult {
 }
 
 /**
- * Pendenz erledigen. Wiederkehrende Pendenzen erzeugen dabei die nächste (atomar in der Datenbank);
- * «undo» macht beides rückgängig.
+ * Pendenz erledigen. Wiederkehrende Pendenzen erzeugen dabei die nächste (atomar in der Datenbank, nur mit
+ * Verbindung); «undo» macht beides rückgängig.
  */
 export function useCompleteTask() {
   const qc = useQueryClient();
@@ -218,8 +265,11 @@ export function useCompleteTask() {
   return async (task: Task): Promise<CompletionResult> => {
     const next = isRecurring(task) ? nextOccurrence(task, new Date()) : null;
     if (!next) {
-      await setDone(task, true);
-      return { nextDue: null, undo: async () => void (await setDone(task, false)) };
+      setDone(task, true);
+      return { nextDue: null, undo: async () => setDone(task, false) };
+    }
+    if (!onlineManager.isOnline()) {
+      throw new Error('Wiederkehrende Pendenzen lassen sich nur mit Internetverbindung abhaken.');
     }
     // sofort ausblenden, bei einem Fehler zurückrollen
     const previous = qc.getQueryData<Task[]>(keys.tasks);
@@ -251,92 +301,43 @@ export function useCompleteTask() {
   };
 }
 
-/** Tags einer Pendenz setzen (nach Namen); fehlende Tags werden in der Liste der Pendenz angelegt. */
+/** Tags einer Pendenz setzen (nach Namen). */
 export function useSetTaskTags() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      taskId,
-      listId,
-      names,
-    }: {
-      taskId: string;
-      listId: string;
-      names: string[];
-    }) => {
-      const wanted = [
-        ...new Map(names.map((n) => [n.trim().toLocaleLowerCase('de-CH'), n.trim()])).values(),
-      ].filter(Boolean);
-      const { data: existing, error } = await supabase
-        .from('tags')
-        .select('id, name')
-        .eq('list_id', listId);
-      if (error) throw error;
-      const byName = new Map(
-        (existing ?? []).map((t) => [t.name.toLocaleLowerCase('de-CH'), t.id as string]),
+  const m = useMutation<void, Error, SetTagsVars>({
+    mutationKey: MK.setTags,
+    onMutate: (v) => {
+      const known = new Map(
+        (qc.getQueryData<Task[]>(keys.tasks) ?? [])
+          .flatMap((t) => t.tags)
+          .map((t) => [t.name.toLocaleLowerCase('de-CH'), t]),
       );
-
-      const missing = wanted.filter((n) => !byName.has(n.toLocaleLowerCase('de-CH')));
-      if (missing.length) {
-        const { data: created, error: insertError } = await supabase
-          .from('tags')
-          .insert(missing.map((name) => ({ list_id: listId, name })))
-          .select('id, name');
-        if (insertError) throw insertError;
-        for (const t of created ?? [])
-          byName.set(t.name.toLocaleLowerCase('de-CH'), t.id as string);
-      }
-      const wantedIds = new Set(wanted.map((n) => byName.get(n.toLocaleLowerCase('de-CH'))!));
-
-      const { data: current, error: currentError } = await supabase
-        .from('task_tags')
-        .select('tag_id')
-        .eq('task_id', taskId);
-      if (currentError) throw currentError;
-      const currentIds = new Set((current ?? []).map((r) => r.tag_id as string));
-
-      const remove = [...currentIds].filter((id) => !wantedIds.has(id));
-      const add = [...wantedIds].filter((id) => !currentIds.has(id));
-      if (remove.length) {
-        const { error: delError } = await supabase
-          .from('task_tags')
-          .delete()
-          .eq('task_id', taskId)
-          .in('tag_id', remove);
-        if (delError) throw delError;
-      }
-      if (add.length) {
-        const { error: addError } = await supabase
-          .from('task_tags')
-          .insert(add.map((tag_id) => ({ task_id: taskId, tag_id })));
-        if (addError) throw addError;
-      }
+      patchTask(qc, v.taskId, (t) => ({
+        ...t,
+        tags: v.names.map(
+          (n) =>
+            known.get(n.toLocaleLowerCase('de-CH')) ?? {
+              id: `neu-${n}`,
+              name: n,
+              color: '#94a3b8',
+            },
+        ),
+      }));
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   });
+  return { mutate: (v: SetTagsVars) => m.mutate(v) };
 }
 
 /** In den Papierkorb verschieben bzw. wiederherstellen */
 export function useTrashTask() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, trashed }: { id: string; trashed: boolean }) => {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ deleted_at: trashed ? new Date().toISOString() : null })
-        .eq('id', id);
-      if (error) throw error;
+  const update = useUpdateTask();
+  return {
+    mutate: ({ id, trashed }: { id: string; trashed: boolean }) => {
+      if (!trashed) qc.setQueryData<Task[]>(keys.trash, (old) => old?.filter((t) => t.id !== id));
+      update.mutate({ id, patch: { deleted_at: trashed ? nowIso() : null } });
     },
-    onMutate: async ({ id, trashed }) => {
-      if (!trashed) return;
-      await qc.cancelQueries({ queryKey: keys.tasks });
-      qc.setQueryData<Task[]>(keys.tasks, (old) => old?.filter((t) => t.id !== id));
-    },
-    onSettled: () => {
-      void qc.invalidateQueries({ queryKey: keys.tasks });
-      void qc.invalidateQueries({ queryKey: keys.trash });
-    },
-  });
+  };
 }
 
 export function usePurgeTask() {
@@ -353,64 +354,47 @@ export function usePurgeTask() {
 // ---------------------------------------------------------------- Unteraufgaben
 export function useAddSubtasks() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      taskId,
-      titles,
-      start,
-    }: {
-      taskId: string;
-      titles: string[];
-      start: number;
-    }) => {
-      const rows = titles.map((title, i) => ({ task_id: taskId, title, position: start + i }));
-      const { data, error } = await supabase.from('subtasks').insert(rows).select();
-      if (error) throw error;
-      return data as Subtask[];
-    },
-    onSuccess: (rows, { taskId }) => {
-      patchTask(qc, taskId, (t) => ({ ...t, subtasks: [...t.subtasks, ...rows] }));
+  const m = useMutation<void, Error, AddSubtasksVars>({
+    mutationKey: MK.addSubtasks,
+    onMutate: (v) => {
+      patchTask(qc, v.taskId, (t) => ({
+        ...t,
+        subtasks: [...t.subtasks, ...v.rows.map((r) => ({ ...r, task_id: v.taskId, done: false }))],
+      }));
     },
   });
+  return {
+    mutate: ({ taskId, titles, start }: { taskId: string; titles: string[]; start: number }) =>
+      m.mutate({
+        taskId,
+        rows: titles.map((title, i) => ({ id: newId(), title, position: start + i })),
+      }),
+  };
 }
 
 export function useUpdateSubtask() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; taskId: string; patch: Partial<Subtask> }) => {
-      const { error } = await supabase.from('subtasks').update(patch).eq('id', id);
-      if (error) throw error;
-    },
-    onMutate: async ({ id, taskId, patch }) => {
-      await qc.cancelQueries({ queryKey: keys.tasks });
-      const previous = qc.getQueryData<Task[]>(keys.tasks);
-      patchTask(qc, taskId, (t) => ({
+  const m = useMutation<void, Error, UpdateSubtaskVars>({
+    mutationKey: MK.updateSubtask,
+    onMutate: (v) => {
+      patchTask(qc, v.taskId, (t) => ({
         ...t,
-        subtasks: t.subtasks.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        subtasks: t.subtasks.map((s) => (s.id === v.id ? { ...s, ...v.patch } : s)),
       }));
-      return { previous };
     },
-    onError: (_e, _v, ctx) => qc.setQueryData(keys.tasks, ctx?.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   });
+  return { mutate: (v: UpdateSubtaskVars) => m.mutate(v) };
 }
 
 export function useDeleteSubtask() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id }: { id: string; taskId: string }) => {
-      const { error } = await supabase.from('subtasks').delete().eq('id', id);
-      if (error) throw error;
+  const m = useMutation<void, Error, DeleteSubtaskVars>({
+    mutationKey: MK.deleteSubtask,
+    onMutate: (v) => {
+      patchTask(qc, v.taskId, (t) => ({ ...t, subtasks: t.subtasks.filter((s) => s.id !== v.id) }));
     },
-    onMutate: async ({ id, taskId }) => {
-      await qc.cancelQueries({ queryKey: keys.tasks });
-      const previous = qc.getQueryData<Task[]>(keys.tasks);
-      patchTask(qc, taskId, (t) => ({ ...t, subtasks: t.subtasks.filter((s) => s.id !== id) }));
-      return { previous };
-    },
-    onError: (_e, _v, ctx) => qc.setQueryData(keys.tasks, ctx?.previous),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   });
+  return { mutate: (v: DeleteSubtaskVars) => m.mutate(v) };
 }
 
 // ---------------------------------------------------------------- Kalender-Abo
@@ -721,25 +705,39 @@ export interface ReminderInput {
 
 export function useAddReminders() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ taskId, items }: { taskId: string; items: ReminderInput[] }) => {
-      const rows = items.map((i) => ({ task_id: taskId, ...i }));
-      const { error } = await supabase.from('reminders').insert(rows);
-      if (error) throw error;
+  const m = useMutation<void, Error, AddRemindersVars>({
+    mutationKey: MK.addReminders,
+    onMutate: (v) => {
+      qc.setQueryData<Reminder[]>(['reminders', v.taskId], (old) => [
+        ...(old ?? []),
+        ...v.rows.map((r) => ({
+          offset_min: null,
+          at: null,
+          fire_at: null,
+          sent_at: null,
+          ...r,
+          task_id: v.taskId,
+        })),
+      ]);
     },
-    onSuccess: (_v, { taskId }) => qc.invalidateQueries({ queryKey: ['reminders', taskId] }),
   });
+  return {
+    mutate: ({ taskId, items }: { taskId: string; items: ReminderInput[] }) =>
+      m.mutate({ taskId, rows: items.map((i) => ({ id: newId(), ...i })) }),
+  };
 }
 
 export function useDeleteReminder() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id }: { id: string; taskId: string }) => {
-      const { error } = await supabase.from('reminders').delete().eq('id', id);
-      if (error) throw error;
+  const m = useMutation<void, Error, DeleteReminderVars>({
+    mutationKey: MK.deleteReminder,
+    onMutate: (v) => {
+      qc.setQueryData<Reminder[]>(['reminders', v.taskId], (old) =>
+        old?.filter((r) => r.id !== v.id),
+      );
     },
-    onSuccess: (_v, { taskId }) => qc.invalidateQueries({ queryKey: ['reminders', taskId] }),
   });
+  return { mutate: (v: DeleteReminderVars) => m.mutate(v) };
 }
 
 export function useMyProfile(userId: string | undefined) {

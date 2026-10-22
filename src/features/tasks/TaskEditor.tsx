@@ -15,6 +15,7 @@ import {
   type ReminderInput,
 } from '../../lib/api';
 import { addDays, buildDue, nextMonday, toDateInput, toTimeInput } from '../../lib/dates';
+import { changedFields } from '../../lib/taskDiff';
 import { NO_REPEAT, fieldsFromForm, formFromTask, type RepeatForm } from '../../lib/repeatForm';
 import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
@@ -78,7 +79,6 @@ export function TaskEditor({
   const [status, setStatus] = useState<Status>(existing?.status ?? 'open');
   const [draftSubtasks, setDraftSubtasks] = useState<string[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   const minutesPart = (d: number | '') => (d === '' ? 0 : d % 60);
   function setCustomParts(hours: number, minutes: number) {
@@ -104,10 +104,10 @@ export function TaskEditor({
     ) ||
     listId !== existing.list_id;
 
-  async function onSubmit(e: FormEvent) {
+  /** Speichern: Die Änderungen gehen in die Warteschlange (funktioniert auch ohne Verbindung) – der Dialog schliesst sofort. */
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || !listId) return;
-    setError(null);
     const dueValues = buildDue(date, time) ?? { due_at: null, due_all_day: false };
     const values = {
       list_id: listId,
@@ -120,40 +120,26 @@ export function TaskEditor({
       assignee_id: effectiveAssignee || null,
       ...fieldsFromForm(repeat, date ? new Date(`${date}T00:00:00`) : null),
     };
-    try {
-      if (existing) {
-        await update.mutateAsync({
-          id: existing.id,
-          patch: {
-            ...values,
-            completed_at:
-              status === 'done' ? (existing.completed_at ?? new Date().toISOString()) : null,
-          },
-        });
-        if (tagsChanged)
-          await setTaskTags.mutateAsync({ taskId: existing.id, listId, names: tagNames });
-      } else {
-        const task = await create.mutateAsync(values);
-        if (tagNames.length)
-          await setTaskTags.mutateAsync({ taskId: task.id, listId, names: tagNames });
-        if (draftReminders.length)
-          await addReminders.mutateAsync({ taskId: task.id, items: draftReminders });
-        const pending = newSubtask.trim() ? [...draftSubtasks, newSubtask.trim()] : draftSubtasks;
-        if (pending.length)
-          await addSubtasks.mutateAsync({ taskId: task.id, titles: pending, start: 0 });
-        try {
-          localStorage.setItem('lastListId', listId);
-        } catch {
-          /* ignorieren */
-        }
+    if (existing) {
+      const patch = changedFields(existing, values);
+      if (Object.keys(patch).length) update.mutate({ id: existing.id, patch });
+      if (tagsChanged) setTaskTags.mutate({ taskId: existing.id, listId, names: tagNames });
+    } else {
+      const id = create(values);
+      if (tagNames.length) setTaskTags.mutate({ taskId: id, listId, names: tagNames });
+      if (draftReminders.length) addReminders.mutate({ taskId: id, items: draftReminders });
+      const pending = newSubtask.trim() ? [...draftSubtasks, newSubtask.trim()] : draftSubtasks;
+      if (pending.length) addSubtasks.mutate({ taskId: id, titles: pending, start: 0 });
+      try {
+        localStorage.setItem('lastListId', listId);
+      } catch {
+        /* ignorieren */
       }
-      onClose();
-    } catch (err) {
-      setError((err as Error).message);
     }
+    onClose();
   }
 
-  async function addSubtask() {
+  function addSubtask() {
     const text = newSubtask.trim();
     if (!text) return;
     setNewSubtask('');
@@ -161,15 +147,15 @@ export function TaskEditor({
       const start = existing.subtasks.length
         ? Math.max(...existing.subtasks.map((s) => s.position)) + 1
         : 0;
-      await addSubtasks.mutateAsync({ taskId: existing.id, titles: [text], start });
+      addSubtasks.mutate({ taskId: existing.id, titles: [text], start });
     } else {
       setDraftSubtasks((d) => [...d, text]);
     }
   }
 
-  async function onTrash() {
+  function onTrash() {
     if (!existing) return;
-    await trash.mutateAsync({ id: existing.id, trashed: true });
+    trash.mutate({ id: existing.id, trashed: true });
     onClose();
     snackbar({
       text: 'In den Papierkorb verschoben',
@@ -458,14 +444,14 @@ export function TaskEditor({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    void addSubtask();
+                    addSubtask();
                   }
                 }}
                 className={`${field} min-w-0 flex-1`}
               />
               <button
                 type="button"
-                onClick={() => void addSubtask()}
+                onClick={() => addSubtask()}
                 className="h-12 rounded-xl bg-slate-200 px-4 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"
               >
                 +
@@ -473,15 +459,9 @@ export function TaskEditor({
             </div>
           </div>
         </fieldset>
-
-        {error && (
-          <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800">
-            {error}
-          </p>
-        )}
         {!readOnly && (
           <button
-            disabled={!title.trim() || !listId || create.isPending || update.isPending}
+            disabled={!title.trim() || !listId}
             className="h-12 rounded-xl bg-brand-600 font-medium text-white active:bg-brand-700 disabled:opacity-60"
           >
             Speichern

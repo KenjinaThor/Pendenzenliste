@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useRealtimeSync } from '../features/sharing/useRealtimeSync';
 import { countFor } from '../lib/views';
 import { useAuth } from '../features/auth/AuthProvider';
+import { SyncBanner } from '../components/SyncBanner';
 import { InstallHint } from '../features/onboarding/InstallHint';
 import { Shortcuts, SHOW_SHORTCUTS_EVENT } from '../features/shortcuts/Shortcuts';
 import { EditorProvider, useEditor } from '../features/tasks/EditorContext';
@@ -93,6 +94,7 @@ export function AppShell() {
               </button>
             </aside>
             <div className="flex min-w-0 flex-1 flex-col">
+              <SyncBanner />
               <InstallHint />
               <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
                 <Outlet />

@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { SYNC_ERROR_EVENT } from '../lib/events';
+import {
+  createContext,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 interface SnackbarMessage {
   text: string;
@@ -18,6 +27,14 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     setMessage(m);
     timer.current = window.setTimeout(() => setMessage(null), 5000);
   }, []);
+
+  // Fehler beim Speichern (auch von Änderungen aus der Warteschlange) melden
+  useEffect(() => {
+    const onError = (e: Event) =>
+      show({ text: `Speichern fehlgeschlagen: ${(e as CustomEvent<string>).detail}` });
+    window.addEventListener(SYNC_ERROR_EVENT, onError);
+    return () => window.removeEventListener(SYNC_ERROR_EVENT, onError);
+  }, [show]);
 
   return (
     <SnackbarContext.Provider value={show}>

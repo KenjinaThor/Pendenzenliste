@@ -19,6 +19,8 @@ export async function mockSupabase(page: Page) {
     notifications: Row[];
     activity: Row[];
     rpcCalls: { name: string; args: unknown }[];
+    /** true = alle Anfragen schlagen fehl (Verbindung getrennt) */
+    offline: boolean;
     reminders: Row[];
     savedFilters: Row[];
     tags: Row[];
@@ -36,6 +38,7 @@ export async function mockSupabase(page: Page) {
     notifications: [],
     activity: [],
     rpcCalls: [],
+    offline: false,
     reminders: [],
     savedFilters: [],
     tags: [],
@@ -78,6 +81,7 @@ export async function mockSupabase(page: Page) {
   await page.route(`${SUPABASE_URL}/**`, async (route) => {
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (db.offline) return route.abort('internetdisconnected');
     const url = new URL(req.url());
     const table = url.pathname.split('/').pop()!;
     const eq = url.searchParams.get('id')?.replace('eq.', '');
@@ -110,6 +114,19 @@ export async function mockSupabase(page: Page) {
           route,
           'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
         );
+      if (name === 'update_task_fields') {
+        const task = db.tasks.find((t) => t.id === body.p_task);
+        if (!task) return json(route, { message: 'Keine Berechtigung', code: 'P0001' }, 400);
+        const ts = body.p_ts as string;
+        const stamps = ((task.field_updated_at as Record<string, string> | undefined) ??= {});
+        for (const [key, value] of Object.entries(body.p_patch as Record<string, unknown>)) {
+          if (stamps[key] && stamps[key] > ts) continue; // neuere Änderung gewinnt, pro Feld
+          task[key] = value;
+          stamps[key] = ts;
+          if (key === 'status') task.completed_at = value === 'done' ? now : null;
+        }
+        return route.fulfill({ status: 204, headers: cors });
+      }
       if (name === 'complete_recurring_task') {
         const task = db.tasks.find((t) => t.id === body.p_task)!;
         const clone = {

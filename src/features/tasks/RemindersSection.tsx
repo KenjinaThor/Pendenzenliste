@@ -23,7 +23,6 @@ export function RemindersSection({ taskId, hasDue, allDay, drafts, onDraftsChang
   const add = useAddReminders();
   const del = useDeleteReminder();
   const [custom, setCustom] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   const items: { key: string; label: string; remove: () => void; sent?: boolean }[] = taskId
     ? saved.map((r) => ({
@@ -38,17 +37,9 @@ export function RemindersSection({ taskId, hasDue, allDay, drafts, onDraftsChang
         remove: () => onDraftsChange(drafts.filter((_, j) => j !== i)),
       }));
 
-  async function addItem(item: ReminderInput) {
-    setError(null);
-    if (taskId) {
-      try {
-        await add.mutateAsync({ taskId, items: [item] });
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    } else {
-      onDraftsChange([...drafts, item]);
-    }
+  function addItem(item: ReminderInput) {
+    if (taskId) add.mutate({ taskId, items: [item] });
+    else onDraftsChange([...drafts, item]);
   }
 
   const used = new Set(
@@ -123,11 +114,6 @@ export function RemindersSection({ taskId, hasDue, allDay, drafts, onDraftsChang
           </button>
         </div>
       </div>
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
       <p className="mt-1 text-xs text-slate-500">
         Erinnerungen kommen als Mitteilung aufs Gerät – aktivierbar unter{' '}
         <a href="#/einstellungen" className="underline">

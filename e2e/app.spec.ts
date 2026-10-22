@@ -132,6 +132,7 @@ test('Rück-Link aus dem Kalender öffnet die Pendenz', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page.getByText('Rückruf')).toBeVisible();
   expect(db.lists).toHaveLength(1); // die Standardliste wird nur einmal angelegt
+  await expect.poll(() => db.tasks.length).toBe(1); // erst bei gespeicherter Pendenz weiter
   const id = db.tasks[0].id;
   // Kaltstart wie beim Antippen eines Links im Kalender (neue Adresse = vollständiges Neuladen)
   await page.goto(`/Pendenzenliste/?from=calendar#/pendenz/${id}`);
@@ -184,7 +185,7 @@ test('Zuweisung, Kommentar mit @Erwähnung und Verlauf', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByText('👤 Ben')).toBeVisible();
-  expect(db.tasks[0].assignee_id).toBe('user-2');
+  await expect.poll(() => db.tasks[0].assignee_id).toBe('user-2');
 
   await page.getByText('Fenster putzen').click();
   await dialog.getByLabel('Kommentar schreiben').fill('Danke @Be');
@@ -192,7 +193,7 @@ test('Zuweisung, Kommentar mit @Erwähnung und Verlauf', async ({ page }) => {
   await expect(dialog.getByLabel('Kommentar schreiben')).toHaveValue('Danke @Ben ');
   await dialog.getByRole('button', { name: 'Senden' }).click();
   await expect(dialog.getByText('@Ben', { exact: true })).toBeVisible(); // hervorgehobene Erwähnung
-  expect(db.comments[0].mentions).toEqual(['user-2']);
+  await expect.poll(() => db.comments[0].mentions).toEqual(['user-2']);
 });
 
 test('Leser sehen Pendenzen, können sie aber nicht ändern', async ({ page }) => {
@@ -268,9 +269,9 @@ test('Erinnerungen bei einer Pendenz hinzufügen und entfernen', async ({ page }
   await expect(reminders.getByText('🔔 15 Min. vorher')).toBeVisible();
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
-  expect(db.reminders.map((r) => r.offset_min).sort((a, b) => Number(a) - Number(b))).toEqual([
-    15, 1440,
-  ]);
+  await expect
+    .poll(() => db.reminders.map((r) => r.offset_min).sort((a, b) => Number(a) - Number(b)))
+    .toEqual([15, 1440]);
 
   await page.goto('/Pendenzenliste/#/demnaechst');
   await page.getByText('Zahnarzttermin').click();
@@ -278,7 +279,7 @@ test('Erinnerungen bei einer Pendenz hinzufügen und entfernen', async ({ page }
   await expect(edit.getByText('🔔 1 Tag vorher')).toBeVisible();
   await edit.getByRole('button', { name: /1 Tag vorher entfernen/ }).click();
   await expect(edit.getByText('🔔 1 Tag vorher')).toBeHidden();
-  expect(db.reminders).toHaveLength(1);
+  await expect.poll(() => db.reminders).toHaveLength(1);
 });
 
 test.describe('Push-Einstellungen', () => {
@@ -307,11 +308,13 @@ test.describe('Push-Einstellungen', () => {
   test('aktivieren, testen und ausschalten', async ({ page }) => {
     await page.getByRole('button', { name: 'Benachrichtigungen aktivieren' }).click();
     await expect(page.getByText('✓ Auf diesem Gerät aktiv')).toBeVisible();
-    expect(db.pushSubscriptions[0]).toMatchObject({
-      endpoint: 'https://push.example/endpoint-1',
-      p256dh: 'P',
-      auth: 'A',
-    });
+    await expect
+      .poll(() => db.pushSubscriptions[0])
+      .toMatchObject({
+        endpoint: 'https://push.example/endpoint-1',
+        p256dh: 'P',
+        auth: 'A',
+      });
 
     await page.getByRole('button', { name: 'Test-Benachrichtigung senden' }).click();
     await expect(page.getByText(/Test gesendet/)).toBeVisible();
@@ -319,7 +322,7 @@ test.describe('Push-Einstellungen', () => {
 
     await page.getByRole('button', { name: 'Auf diesem Gerät ausschalten' }).click();
     await expect(page.getByRole('button', { name: 'Benachrichtigungen aktivieren' })).toBeVisible();
-    expect(db.pushSubscriptions).toHaveLength(0);
+    await expect.poll(() => db.pushSubscriptions).toHaveLength(0);
   });
 
   test('Tageszusammenfassung und Zeitzone speichern', async ({ page }) => {
@@ -327,7 +330,7 @@ test.describe('Push-Einstellungen', () => {
     await digest.click();
     await expect(digest).toBeChecked();
     await expect(page.getByLabel('Uhrzeit', { exact: true })).toHaveValue('07:30');
-    expect(db.profile.daily_digest_time).toBe('07:30');
+    await expect.poll(() => db.profile.daily_digest_time).toBe('07:30');
     await page.getByLabel('Uhrzeit', { exact: true }).fill('06:45');
     await expect.poll(() => db.profile.daily_digest_time).toBe('06:45');
     await page.getByLabel('Zeitzone').selectOption('Europe/London');
@@ -347,12 +350,14 @@ test.describe('Schnelleingabe in natürlicher Sprache', () => {
     await page.keyboard.press('Enter');
 
     await expect.poll(() => db.tasks.length).toBe(1);
-    expect(db.tasks[0]).toMatchObject({
-      title: 'Steuererklärung einreichen',
-      priority: 'high',
-      due_all_day: false,
-    });
-    expect(new Date(db.tasks[0].due_at as string).getHours()).toBe(14);
+    await expect
+      .poll(() => db.tasks[0])
+      .toMatchObject({
+        title: 'Steuererklärung einreichen',
+        priority: 'high',
+        due_all_day: false,
+      });
+    await expect.poll(() => new Date(db.tasks[0].due_at as string).getHours()).toBe(14);
     await expect.poll(() => db.tags.map((t) => t.name)).toEqual(['wichtig']); // Tags folgen nach der Pendenz
 
     await page.goto('/Pendenzenliste/#/demnaechst');
@@ -370,7 +375,7 @@ test.describe('Schnelleingabe in natürlicher Sprache', () => {
     ).toBeVisible();
     await page.keyboard.press('Enter');
     await expect(page.getByText('Pillen nehmen', { exact: true })).toBeVisible();
-    expect(db.tasks[0]).toMatchObject({ rrule: 'FREQ=DAILY', list_id: 'id-1' });
+    await expect.poll(() => db.tasks[0]).toMatchObject({ rrule: 'FREQ=DAILY', list_id: 'id-1' });
   });
 });
 
@@ -384,7 +389,7 @@ test('wiederkehrende Pendenz erledigen: nächste entsteht, Rückgängig stellt a
   await page.getByRole('checkbox', { name: /Pillen nehmen/ }).click();
   await expect(page.getByText(/erledigt · nächste: Morgen/)).toBeVisible();
   await expect.poll(() => db.tasks.length).toBe(2);
-  expect(db.tasks.map((t) => t.status).sort()).toEqual(['done', 'open']);
+  await expect.poll(() => db.tasks.map((t) => t.status).sort()).toEqual(['done', 'open']);
   const open = db.tasks.find((t) => t.status === 'open')!;
   expect(open.rrule).toBe('FREQ=DAILY');
   expect(new Date(open.due_at as string).getDate()).toBe(
@@ -393,7 +398,7 @@ test('wiederkehrende Pendenz erledigen: nächste entsteht, Rückgängig stellt a
 
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect.poll(() => db.tasks.length).toBe(1);
-  expect(db.tasks[0]).toMatchObject({ status: 'open', rrule: 'FREQ=DAILY' });
+  await expect.poll(() => db.tasks[0]).toMatchObject({ status: 'open', rrule: 'FREQ=DAILY' });
   await expect(page.getByText('🔁 Jeden Tag')).toBeVisible();
 });
 
@@ -413,12 +418,14 @@ test('Wiederholung und Tags im Editor setzen', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
 
-  expect(db.tasks[0]).toMatchObject({
-    rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
-    repeat_mode: 'fixed',
-  });
-  expect(db.tags.map((t) => t.name)).toEqual(['Haushalt']);
-  expect(db.taskTags).toHaveLength(1);
+  await expect
+    .poll(() => db.tasks[0])
+    .toMatchObject({
+      rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+      repeat_mode: 'fixed',
+    });
+  await expect.poll(() => db.tags.map((t) => t.name)).toEqual(['Haushalt']);
+  await expect.poll(() => db.taskTags).toHaveLength(1);
 
   await page.goto('/Pendenzenliste/#/demnaechst');
   await page.getByText('Putzen').click();
@@ -451,7 +458,7 @@ test('Tastenkürzel', async ({ page }) => {
   await expect(page.locator('[data-task-id].ring-2')).toHaveCount(1);
   await page.keyboard.press('e');
   await expect.poll(() => db.tasks.filter((t) => t.status === 'done').length).toBe(1);
-  expect(db.tasks.find((t) => t.status === 'done')?.title).toBe('Erste');
+  await expect.poll(() => db.tasks.find((t) => t.status === 'done')?.title).toBe('Erste');
 
   await page.keyboard.press('/');
   await expect(page).toHaveURL(/#\/suche$/);
@@ -566,7 +573,9 @@ test.describe('Filter und Intelligente Listen', () => {
     await expect(page.getByRole('heading', { name: /Wichtig/ })).toBeVisible();
     await expect(page.getByText('Wichtige Rechnung')).toBeVisible();
     await expect(page.getByText('Blumen giessen')).toBeHidden();
-    expect(db.savedFilters[0]).toMatchObject({ name: 'Wichtig', filter: { priorities: ['high'] } });
+    await expect
+      .poll(() => db.savedFilters[0])
+      .toMatchObject({ name: 'Wichtig', filter: { priorities: ['high'] } });
     await expect(page.getByRole('link', { name: /Wichtig/ })).toBeVisible(); // Seitenleiste
   });
 
@@ -713,7 +722,7 @@ test.describe('Tagesfokus «Meine 3 für heute»', () => {
     await expect(page.getByRole('region', { name: /Meine 3 für heute \(3\/3\)/ })).toBeVisible();
     await page.getByRole('button', { name: 'Vier in den Tagesfokus setzen' }).click();
     await expect(page.getByText(/Tagesfokus ist voll/)).toBeVisible();
-    expect(db.tasks.filter((t) => t.focus_date).length).toBe(3);
+    await expect.poll(() => db.tasks.filter((t) => t.focus_date).length).toBe(3);
 
     await page.getByRole('button', { name: 'Zwei aus dem Tagesfokus entfernen' }).click();
     await expect(page.getByRole('region', { name: /Meine 3 für heute \(2\/3\)/ })).toBeVisible();
@@ -748,7 +757,7 @@ test.describe('Profil und Darstellung', () => {
     await page.goto('/Pendenzenliste/#/einstellungen');
     await page.getByRole('button', { name: 'Dunkel' }).click();
     await expect(page.locator('html')).toHaveClass(/dark/);
-    expect(db.profile.theme).toBe('dark');
+    await expect.poll(() => db.profile.theme).toBe('dark');
     await page.getByRole('button', { name: 'Hell', exact: true }).click();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
 
@@ -756,5 +765,89 @@ test.describe('Profil und Darstellung', () => {
     await name.fill('Anna Muster');
     await name.blur();
     await expect.poll(() => db.profile.name).toBe('Anna Muster');
+  });
+});
+
+// ---------------------------------------------------------------- Offline
+test.describe('Offline-Betrieb', () => {
+  test('Änderungen ohne Verbindung werden vorgemerkt und danach übertragen', async ({
+    page,
+    context,
+  }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Online erfasst');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+
+    await context.setOffline(true);
+    await expect(page.getByText(/📴 Offline/)).toBeVisible();
+
+    await page.getByLabel('Pendenz schnell erfassen').fill('Im Zug erfasst morgen');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Im Zug erfasst', { exact: true })).toBeHidden(); // fällig morgen → nicht unter «Heute»
+    await page.getByLabel('Pendenz schnell erfassen').fill('Offline erfasst');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Offline erfasst', { exact: true })).toBeVisible(); // sofort sichtbar
+    await page.getByRole('checkbox', { name: /Online erfasst/ }).click();
+    await expect(page.getByText(/📴 Offline – 3 Änderungen warten/)).toBeVisible();
+    expect(db.tasks).toHaveLength(1); // noch nichts übertragen
+
+    await context.setOffline(false);
+    await expect.poll(() => db.tasks.length).toBe(3);
+    await expect
+      .poll(() => db.tasks.find((t) => t.title === 'Online erfasst')?.status)
+      .toBe('done');
+    await expect(page.getByText(/📴|Änderungen werden übertragen/)).toBeHidden();
+    expect(db.tasks.map((t) => t.title).sort()).toEqual([
+      'Im Zug erfasst',
+      'Offline erfasst',
+      'Online erfasst',
+    ]);
+  });
+
+  test('vorgemerkte Änderungen überstehen ein Neuladen', async ({ page, context }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Basis');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.waitForTimeout(1200); // Zwischenspeicher wird gesichert
+
+    await context.setOffline(true);
+    await page.getByLabel('Pendenz schnell erfassen').fill('Nur lokal');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Nur lokal', { exact: true })).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    await page.reload(); // App und Daten kommen aus dem lokalen Speicher
+    await expect(page.getByText('Nur lokal', { exact: true })).toBeVisible();
+    await expect(page.getByText('Basis', { exact: true })).toBeVisible();
+    await expect(page.getByText(/📴 Offline – 1 Änderung wartet/)).toBeVisible();
+
+    await context.setOffline(false);
+    await expect.poll(() => db.tasks.map((t) => t.title).sort()).toEqual(['Basis', 'Nur lokal']);
+  });
+
+  test('beim Abmelden wird der lokale Speicher geleert', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Geheim');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.waitForTimeout(1200);
+    const cached = () =>
+      page.evaluate(
+        () =>
+          new Promise<unknown>((resolve) => {
+            const open = indexedDB.open('keyval-store');
+            open.onsuccess = () => {
+              const store = open.result.transaction('keyval').objectStore('keyval');
+              const get = store.get('pendenzen-cache');
+              get.onsuccess = () => resolve(get.result ?? null);
+              get.onerror = () => resolve('fehler');
+            };
+            open.onerror = () => resolve('fehler');
+          }),
+      );
+    expect(await cached()).toContain('Geheim');
+    await page.goto('/Pendenzenliste/#/einstellungen');
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await expect(page.getByRole('button', { name: /Mit Google anmelden/ })).toBeVisible();
+    await expect.poll(async () => String(await cached())).not.toContain('Geheim'); // Speicher geleert
   });
 });

@@ -1,4 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '../features/settings/ThemeProvider';
 import { StatsPage } from '../features/stats/StatsPage';
@@ -16,13 +18,10 @@ import { SearchPage } from '../features/search/SearchPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { TrashPage } from '../features/trash/TrashPage';
 import { ViewPage } from '../features/views/ViewPage';
+import { clearLocalData, persister, queryClient } from '../lib/queryClient';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { VIEWS } from '../lib/views';
 import { AppShell } from './AppShell';
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true } },
-});
 
 function Authenticated() {
   return (
@@ -65,14 +64,36 @@ function Gate() {
   return session ? <Authenticated /> : <LoginPage />;
 }
 
+/** Beim Abmelden den lokalen Zwischenspeicher leeren (keine Daten für die nächste Person auf demselben Gerät). */
+function CacheGuard() {
+  const { session, loading } = useAuth();
+  useEffect(() => {
+    if (!loading && !session) void clearLocalData();
+  }, [session, loading]);
+  return null;
+}
+
+const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+
 export function App() {
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister, maxAge: ONE_WEEK, buster: 'v1' }}
+        // gespeicherte, noch nicht übertragene Änderungen nach dem Neuladen fortsetzen
+        onSuccess={() => {
+          // Ohne Verbindung bleiben die Änderungen vorgemerkt; sobald sie zurückkehrt, setzt React Query sie selbst fort.
+          if (onlineManager.isOnline()) {
+            void queryClient.resumePausedMutations().then(() => queryClient.invalidateQueries());
+          }
+        }}
+      >
         <ThemeProvider>
+          <CacheGuard />
           <Gate />
         </ThemeProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </AuthProvider>
   );
 }
