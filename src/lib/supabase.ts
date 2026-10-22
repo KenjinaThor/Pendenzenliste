@@ -12,6 +12,7 @@ export const supabaseKey = anonKey ?? '';
 
 // Der anon-Key ist öffentlich; geschützt sind die Daten durch Row Level Security.
 // PKCE: Der Login-Code kommt als ?code=… zurück und kollidiert so nicht mit dem HashRouter.
+// Der Austausch erfolgt selbst im AuthProvider, damit Fehler sichtbar werden.
 export const supabase = createClient(
   isSupabaseConfigured ? url! : 'http://localhost:54321',
   isSupabaseConfigured ? anonKey! : 'missing-anon-key',
@@ -20,7 +21,7 @@ export const supabase = createClient(
       flowType: 'pkce',
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
     },
   },
 );

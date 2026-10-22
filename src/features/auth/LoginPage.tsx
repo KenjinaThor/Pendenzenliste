@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { appUrl, supabase, supabaseKey } from '../../lib/supabase';
+import { useAuth } from './AuthProvider';
 
 type Step = 'start' | 'code';
 
@@ -9,6 +10,7 @@ export function LoginPage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { authError } = useAuth();
 
   async function signInWithGoogle() {
     setError(null);
@@ -154,9 +156,9 @@ export function LoginPage() {
         </form>
       )}
 
-      {error && (
+      {(error ?? authError) && (
         <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800">
-          {error}
+          {error ?? authError}
         </p>
       )}
     </main>
