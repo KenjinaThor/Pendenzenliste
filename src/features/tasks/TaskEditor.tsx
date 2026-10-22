@@ -4,6 +4,8 @@ import { useSnackbar } from '../../components/Snackbar';
 import {
   useAddReminders,
   useAddSubtasks,
+  useSaveTemplate,
+  useTemplates,
   useSetTaskTags,
   useCreateTask,
   useDeleteSubtask,
@@ -15,12 +17,15 @@ import {
   type ReminderInput,
 } from '../../lib/api';
 import { addDays, buildDue, nextMonday, toDateInput, toTimeInput } from '../../lib/dates';
+import { taskToTemplate } from '../../lib/templates';
+import type { TemplatePayload } from '../../lib/types';
 import { changedFields } from '../../lib/taskDiff';
 import { NO_REPEAT, fieldsFromForm, formFromTask, type RepeatForm } from '../../lib/repeatForm';
 import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
 import { usePermissions } from '../sharing/usePermissions';
 import { ActivitySection } from './ActivitySection';
+import { AttachmentsSection } from './AttachmentsSection';
 import { CommentsSection } from './CommentsSection';
 import { RemindersSection } from './RemindersSection';
 import { RepeatSection } from './RepeatSection';
@@ -54,9 +59,15 @@ export function TaskEditor({
   const snackbar = useSnackbar();
   const perms = usePermissions();
 
+  const { data: templates = [] } = useTemplates();
+  const saveTemplate = useSaveTemplate();
+  const startTemplate = !existing
+    ? templates.find((t) => t.id === defaults?.templateId)?.payload
+    : undefined;
+
   const due = existing?.due_at ? new Date(existing.due_at) : null;
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [notes, setNotes] = useState(existing?.notes_md ?? '');
+  const [title, setTitle] = useState(existing?.title ?? startTemplate?.title ?? '');
+  const [notes, setNotes] = useState(existing?.notes_md ?? startTemplate?.notes_md ?? '');
   // Auswahl der Person; solange nichts gewählt ist, gilt die erste Liste (auch wenn sie erst später lädt)
   const [chosenListId, setListId] = useState(existing?.list_id ?? defaults?.list_id ?? '');
   const [assigneeId, setAssigneeId] = useState(existing?.assignee_id ?? '');
@@ -68,17 +79,42 @@ export function TaskEditor({
   const effectiveAssignee = members.some((m) => m.user_id === assigneeId) ? assigneeId : '';
   const [date, setDate] = useState(due ? toDateInput(due) : (defaults?.date ?? ''));
   const [time, setTime] = useState(due && !existing?.due_all_day ? toTimeInput(due) : '');
-  const [duration, setDuration] = useState<number | ''>(existing?.duration_min ?? '');
+  const [duration, setDuration] = useState<number | ''>(
+    existing?.duration_min ?? startTemplate?.duration_min ?? '',
+  );
   // «Eigene Dauer»: Eingabe in Stunden und Minuten (auch für bereits gespeicherte Sonderwerte)
   const [customDuration, setCustomDuration] = useState(
-    existing?.duration_min != null && !DURATIONS.includes(existing.duration_min),
+    (existing?.duration_min ?? startTemplate?.duration_min ?? null) !== null &&
+      !DURATIONS.includes((existing?.duration_min ?? startTemplate?.duration_min) as number),
   );
   const [repeat, setRepeat] = useState<RepeatForm>(() => formFromTask(existing) ?? NO_REPEAT);
-  const [tagNames, setTagNames] = useState<string[]>(existing?.tags.map((t) => t.name) ?? []);
-  const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium');
+  const [tagNames, setTagNames] = useState<string[]>(
+    existing?.tags.map((t) => t.name) ?? startTemplate?.tags ?? [],
+  );
+  const [priority, setPriority] = useState<Priority>(
+    existing?.priority ?? startTemplate?.priority ?? 'medium',
+  );
   const [status, setStatus] = useState<Status>(existing?.status ?? 'open');
-  const [draftSubtasks, setDraftSubtasks] = useState<string[]>([]);
+  const [draftSubtasks, setDraftSubtasks] = useState<string[]>(startTemplate?.subtasks ?? []);
   const [newSubtask, setNewSubtask] = useState('');
+
+  function applyTemplate(payload: TemplatePayload) {
+    setTitle(payload.title);
+    setNotes(payload.notes_md);
+    setPriority(payload.priority);
+    setTagNames(payload.tags);
+    setDraftSubtasks(payload.subtasks);
+    setDuration(payload.duration_min ?? '');
+    setCustomDuration(payload.duration_min !== null && !DURATIONS.includes(payload.duration_min));
+  }
+
+  function onSaveAsTemplate() {
+    if (!existing) return;
+    saveTemplate.mutate(
+      { name: existing.title, payload: taskToTemplate(existing) },
+      { onSuccess: () => snackbar({ text: `Vorlage «${existing.title}» gespeichert` }) },
+    );
+  }
 
   const minutesPart = (d: number | '') => (d === '' ? 0 : d % 60);
   function setCustomParts(hours: number, minutes: number) {
@@ -173,6 +209,24 @@ export function TaskEditor({
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
             Du hast in dieser Liste nur Leserechte.
           </p>
+        )}
+        {!existing && templates.length > 0 && (
+          <select
+            aria-label="Aus Vorlage"
+            value=""
+            onChange={(e) => {
+              const t = templates.find((x) => x.id === e.target.value);
+              if (t) applyTemplate(t.payload);
+            }}
+            className={field}
+          >
+            <option value="">📑 Aus Vorlage …</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
         )}
         <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
           <input
@@ -481,6 +535,15 @@ export function TaskEditor({
             📅 Zum Kalender hinzufügen
           </button>
         )}
+        {existing && (
+          <button
+            type="button"
+            onClick={onSaveAsTemplate}
+            className="h-12 rounded-xl bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"
+          >
+            📑 Als Vorlage speichern
+          </button>
+        )}
         {existing && !readOnly && (
           <button
             type="button"
@@ -493,6 +556,9 @@ export function TaskEditor({
       </form>
       {existing && (
         <>
+          <div className="mt-6">
+            <AttachmentsSection task={existing} canEdit={perms.canEdit(existing.list_id)} />
+          </div>
           <CommentsSection
             taskId={existing.id}
             listId={existing.list_id}

@@ -17,9 +17,17 @@ import {
   type UpdateTaskVars,
 } from './mutations';
 import { isRecurring, nextOccurrence } from './recurrence';
+import {
+  MAX_ATTACHMENT_BYTES,
+  isAllowedType,
+  prepareUpload,
+  sanitizeFileName,
+} from './attachments';
+import { normalizePayload } from './templates';
 import { supabase } from './supabase';
 import type {
   ActivityEntry,
+  Attachment,
   AppNotification,
   Comment,
   Invite,
@@ -32,6 +40,8 @@ import type {
   Status,
   Tag,
   Task,
+  Template,
+  TemplatePayload,
   TodoList,
 } from './types';
 
@@ -819,4 +829,120 @@ export function useDeleteFilter() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-filters'] }),
   });
+}
+
+// ---------------------------------------------------------------- Vorlagen
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('id, name, payload')
+        .order('name');
+      if (error) throw error;
+      return (data ?? []).map((t) => ({
+        ...t,
+        payload: normalizePayload(t.payload),
+      })) as Template[];
+    },
+  });
+}
+
+export function useSaveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      name,
+      payload,
+    }: {
+      id?: string;
+      name: string;
+      payload: TemplatePayload;
+    }) => {
+      const query = id
+        ? supabase.from('templates').update({ name, payload }).eq('id', id)
+        : supabase.from('templates').insert({ name, payload });
+      const { error } = await query;
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('templates').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}
+
+// ---------------------------------------------------------------- Dateianhänge (nur mit Verbindung)
+export function useAttachments(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ['attachments', taskId ?? ''],
+    enabled: Boolean(taskId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attachments')
+        .select('id, task_id, storage_path, file_name, mime, size_bytes, created_at')
+        .eq('task_id', taskId!)
+        .order('created_at');
+      if (error) throw error;
+      return data as Attachment[];
+    },
+  });
+}
+
+export function useUploadAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ task, file }: { task: Pick<Task, 'id' | 'list_id'>; file: File }) => {
+      if (!isAllowedType(file.type))
+        throw new Error('Erlaubt sind Fotos (JPG, PNG, WebP, GIF, HEIC) und PDF-Dateien.');
+      const prepared = await prepareUpload(file);
+      if (prepared.size > MAX_ATTACHMENT_BYTES) throw new Error('Die Datei ist grösser als 5 MB.');
+      const path = `${task.list_id}/${task.id}/${crypto.randomUUID()}-${sanitizeFileName(prepared.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(path, prepared, { contentType: prepared.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from('attachments').insert({
+        task_id: task.id,
+        storage_path: path,
+        file_name: prepared.name.slice(0, 200),
+        mime: prepared.type,
+        size_bytes: prepared.size,
+      });
+      if (error) {
+        await supabase.storage.from('attachments').remove([path]); // keine Datei ohne Eintrag zurücklassen
+        throw error;
+      }
+    },
+    onSuccess: (_v, { task }) => qc.invalidateQueries({ queryKey: ['attachments', task.id] }),
+  });
+}
+
+export function useDeleteAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (a: Attachment) => {
+      const { error } = await supabase.from('attachments').delete().eq('id', a.id);
+      if (error) throw error;
+      await supabase.storage.from('attachments').remove([a.storage_path]);
+    },
+    onSuccess: (_v, a) => qc.invalidateQueries({ queryKey: ['attachments', a.task_id] }),
+  });
+}
+
+/** Kurzlebiger Link (60 Sekunden) zum Öffnen einer Datei. */
+export async function attachmentUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('attachments').createSignedUrl(path, 60);
+  if (error || !data) throw error ?? new Error('Link konnte nicht erstellt werden');
+  return data.signedUrl;
 }

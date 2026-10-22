@@ -23,7 +23,7 @@ test('Pendenz mit Unteraufgabe für morgen erscheint unter «Demnächst»', asyn
   await dialog.getByLabel('Titel').fill('Ferien planen');
   await dialog.getByRole('button', { name: 'Morgen' }).click();
   await dialog.getByLabel('Neue Unteraufgabe').fill('Pass erneuern');
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden(); // Speichern abwarten
   await page.goto('/Pendenzenliste/#/demnaechst');
   await expect(page.getByText('Ferien planen')).toBeVisible();
@@ -58,7 +58,7 @@ test('neue Liste anlegen', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.getByRole('button', { name: /Neue Liste/ }).click();
   await page.getByLabel('Name der Liste').fill('Ferien');
-  await page.getByRole('button', { name: 'Speichern' }).click();
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('heading', { name: /Ferien/ })).toBeVisible();
 });
 
@@ -71,7 +71,7 @@ test('eigene Dauer erfassen und wieder anzeigen', async ({ page }) => {
   await dialog.getByLabel('Dauer', { exact: true }).selectOption('custom');
   await dialog.getByLabel('Dauer in Stunden').fill('1');
   await dialog.getByLabel('Dauer in Minuten').fill('20');
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden(); // Speichern abwarten
 
   await page.goto('/Pendenzenliste/#/demnaechst');
@@ -111,7 +111,7 @@ test('Zum Kalender hinzufügen lädt eine .ics-Datei', async ({ page }) => {
   await dialog.getByLabel('Titel').fill('Zahnarzt');
   await dialog.getByRole('button', { name: 'Morgen' }).click();
   await dialog.getByLabel('Uhrzeit (optional)').fill('14:30');
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden(); // Speichern abwarten
 
   await page.goto('/Pendenzenliste/#/demnaechst');
@@ -182,7 +182,7 @@ test('Zuweisung, Kommentar mit @Erwähnung und Verlauf', async ({ page }) => {
 
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Zugewiesen an').selectOption({ label: 'Ben' });
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByText('👤 Ben')).toBeVisible();
   await expect.poll(() => db.tasks[0].assignee_id).toBe('user-2');
@@ -235,7 +235,7 @@ test('Leser sehen Pendenzen, können sie aber nicht ändern', async ({ page }) =
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Du hast in dieser Liste nur Leserechte.')).toBeVisible();
   await expect(dialog.getByLabel('Titel')).toBeDisabled();
-  await expect(dialog.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'In den Papierkorb' })).toHaveCount(0);
 });
 
@@ -267,7 +267,7 @@ test('Erinnerungen bei einer Pendenz hinzufügen und entfernen', async ({ page }
   await reminders.getByLabel('Erinnerung hinzufügen').selectOption({ label: '15 Min. vorher' });
   await reminders.getByLabel('Erinnerung hinzufügen').selectOption({ label: '1 Tag vorher' });
   await expect(reminders.getByText('🔔 15 Min. vorher')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect
     .poll(() => db.reminders.map((r) => r.offset_min).sort((a, b) => Number(a) - Number(b)))
@@ -415,7 +415,7 @@ test('Wiederholung und Tags im Editor setzen', async ({ page }) => {
   await dialog.getByLabel('Tag hinzufügen').fill('Haushalt');
   await dialog.getByLabel('Tag hinzufügen').press('Enter');
   await expect(dialog.getByText('#Haushalt')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden();
 
   await expect
@@ -849,5 +849,269 @@ test.describe('Offline-Betrieb', () => {
     await page.getByRole('button', { name: 'Abmelden' }).click();
     await expect(page.getByRole('button', { name: /Mit Google anmelden/ })).toBeVisible();
     await expect.poll(async () => String(await cached())).not.toContain('Geheim'); // Speicher geleert
+  });
+});
+
+// ---------------------------------------------------------------- Phase 8c: Vorlagen, Import/Export, Anhänge
+test.describe('Vorlagen', () => {
+  test('Vorlage anlegen und beim Erstellen einer Pendenz verwenden', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.getByRole('link', { name: 'Vorlagen' }).click();
+    await page.getByRole('button', { name: '＋ Neu' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Name der Vorlage').fill('Ferienvorbereitung');
+    await dialog.getByLabel('Titel der Pendenz').fill('Ferien vorbereiten');
+    await dialog.getByLabel('Tags').fill('Reise, Familie');
+    await dialog
+      .getByLabel('Unteraufgaben')
+      .fill('- Pass prüfen\n- Koffer packen\n\n3. Tickets drucken');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(page.getByText('3 Unteraufgaben · #Reise #Familie')).toBeVisible();
+    await expect
+      .poll(() => db.templates[0]?.payload)
+      .toMatchObject({
+        title: 'Ferien vorbereiten',
+        tags: ['Reise', 'Familie'],
+        subtasks: ['Pass prüfen', 'Koffer packen', 'Tickets drucken'],
+      });
+
+    await page.getByRole('button', { name: 'Pendenz erstellen' }).click();
+    const editor = page.getByRole('dialog');
+    await expect(editor.getByLabel('Titel')).toHaveValue('Ferien vorbereiten');
+    await expect(editor.getByText('Koffer packen')).toBeVisible();
+    await expect(editor.getByText('#Reise')).toBeVisible();
+    await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await expect
+      .poll(() => db.tasks[0].subtasks.map((s) => s.title))
+      .toEqual(['Pass prüfen', 'Koffer packen', 'Tickets drucken']);
+    await expect.poll(() => db.tags.map((t) => t.name).sort()).toEqual(['Familie', 'Reise']);
+  });
+
+  test('Pendenz als Vorlage speichern und über «Aus Vorlage» anwenden', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Wochenbericht');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.getByText('Wochenbericht', { exact: true }).click();
+    await page.getByRole('button', { name: /Als Vorlage speichern/ }).click();
+    await expect(page.getByText('Vorlage «Wochenbericht» gespeichert')).toBeVisible();
+    await expect.poll(() => db.templates.length).toBe(1);
+    await page.keyboard.press('Escape');
+
+    await page.reload();
+    await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+    await page
+      .getByRole('dialog')
+      .getByLabel('Aus Vorlage')
+      .selectOption({ label: 'Wochenbericht' });
+    await expect(page.getByRole('dialog').getByLabel('Titel')).toHaveValue('Wochenbericht');
+  });
+});
+
+test.describe('Import und Export', () => {
+  test('CSV exportieren', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Steuern morgen 14 Uhr !hoch +wichtig');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.goto('/Pendenzenliste/#/daten');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /Pendenzen als CSV/ }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^pendenzen-\d{4}-\d{2}-\d{2}\.csv$/);
+    const text = (await import('node:fs')).readFileSync((await download.path())!, 'utf8');
+    expect(text.startsWith('﻿Liste;Titel;')).toBe(true);
+    expect(text).toContain('Persönlich;Steuern');
+    expect(text).toContain(';14:00;');
+    expect(text).toContain(';Hoch;Offen;wichtig;');
+  });
+
+  test('JSON-Backup exportieren', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Backup-Test');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.goto('/Pendenzenliste/#/daten');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /Vollständiges Backup/ }).click(),
+    ]);
+    const backup = JSON.parse(
+      (await import('node:fs')).readFileSync((await download.path())!, 'utf8'),
+    );
+    expect(backup).toMatchObject({ app: 'pendenzen', version: 1 });
+    expect(backup.tasks.map((t: { title: string }) => t.title)).toEqual(['Backup-Test']);
+  });
+
+  test('CSV importieren: Vorschau, Hinweise, neue Liste, Unteraufgaben und Tags', async ({
+    page,
+  }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    db.tasks.length = 0;
+    await page.goto('/Pendenzenliste/#/daten');
+
+    const csv = [
+      'Titel;Liste;Fällig;Priorität;Tags;Unteraufgaben',
+      'Steuern machen;Büro;15.11.2027;hoch;Finanzen, Wichtig;[x] Belege | [ ] Formular',
+      'Milch kaufen;;;;;',
+      ';Büro;;;;',
+      'Kaputtes Datum;;31.02.2027;;;',
+    ].join('\n');
+    await page
+      .getByLabel('Datei auswählen')
+      .setInputFiles({ name: 'export.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    const preview = page.getByRole('region', { name: 'Vorschau' });
+    await expect(preview.getByText('3 Pendenzen in «export.csv» erkannt')).toBeVisible();
+    await expect(preview.getByText(/2 Hinweise/)).toBeVisible();
+    await expect(preview.getByText(/Zeile 4: Titel fehlt/)).toBeVisible();
+
+    await preview.getByRole('button', { name: '3 Pendenzen importieren' }).click();
+    await expect(
+      page.getByText(/✓ 3 Pendenzen importiert, 2 Unteraufgaben, 1 neue Listen/),
+    ).toBeVisible();
+
+    expect(db.tasks.map((t) => t.title).sort()).toEqual([
+      'Kaputtes Datum',
+      'Milch kaufen',
+      'Steuern machen',
+    ]);
+    const buero = db.lists.find((l) => l.name === 'Büro')!;
+    expect(db.tasks.find((t) => t.title === 'Steuern machen')).toMatchObject({
+      list_id: buero.id,
+      priority: 'high',
+    });
+    expect(db.tasks.find((t) => t.title === 'Milch kaufen')?.list_id).toBe('id-1'); // Standardliste
+    expect(db.tasks.find((t) => t.title === 'Steuern machen')?.subtasks).toHaveLength(2);
+    expect(db.tags.map((t) => t.name).sort()).toEqual(['Finanzen', 'Wichtig']);
+    expect(db.taskTags).toHaveLength(2);
+  });
+
+  test('Backup (JSON) importiert auch Vorlagen und Intelligente Listen', async ({ page }) => {
+    await page.goto('/Pendenzenliste/#/daten');
+    const backup = {
+      app: 'pendenzen',
+      version: 1,
+      lists: [{ name: 'Familie', emoji: '👨‍👩‍👧', color: '#10b981' }],
+      tasks: [
+        {
+          list: 'Familie',
+          title: 'Ausflug planen',
+          priority: 'low',
+          status: 'open',
+          tags: [],
+          subtasks: [],
+        },
+      ],
+      templates: [{ name: 'Ausflug', payload: { title: 'Ausflug', subtasks: ['Route'] } }],
+      savedFilters: [{ name: 'Wichtig', filter: { priorities: ['high'] } }],
+    };
+    await page.getByLabel('Datei auswählen').setInputFiles({
+      name: 'backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(backup)),
+    });
+    await expect(
+      page.getByText('1 Pendenz in «backup.json» erkannt, 1 Vorlagen, 1 Intelligente Listen'),
+    ).toBeVisible();
+    await page.getByRole('button', { name: '1 Pendenz importieren' }).click();
+    await expect(page.getByText(/✓ 1 Pendenzen importiert/)).toBeVisible();
+    expect(db.lists.find((l) => l.name === 'Familie')).toMatchObject({
+      emoji: '👨‍👩‍👧',
+      color: '#10b981',
+    });
+    expect(db.templates[0].payload).toMatchObject({ title: 'Ausflug', subtasks: ['Route'] });
+    expect(db.savedFilters[0]).toMatchObject({ name: 'Wichtig' });
+  });
+
+  test('ungültige Datei: verständliche Meldung', async ({ page }) => {
+    await page.goto('/Pendenzenliste/#/daten');
+    await page.getByLabel('Datei auswählen').setInputFiles({
+      name: 'foto.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Foo;Bar\nA;1'),
+    });
+    await expect(page.getByText(/keine Pendenzen erkannt/)).toBeVisible();
+    await expect(page.getByText(/Keine Spalte «Titel» gefunden/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /importieren/ })).toHaveCount(0);
+  });
+});
+
+test.describe('Anhänge', () => {
+  test('Datei anhängen, öffnen und löschen', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Rechnung bezahlen');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.getByText('Rechnung bezahlen', { exact: true }).click();
+    const dialog = page.getByRole('dialog');
+
+    await dialog.getByLabel('Datei anhängen').setInputFiles({
+      name: 'Rechnung März.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.alloc(2048, 1),
+    });
+    await expect(dialog.getByRole('button', { name: /^Rechnung März\.pdf/ })).toBeVisible();
+    await expect(dialog.getByText('2 KB')).toBeVisible();
+    expect(db.attachments[0]).toMatchObject({
+      file_name: 'Rechnung März.pdf',
+      mime: 'application/pdf',
+      size_bytes: 2048,
+    });
+    expect(db.storage[0]).toMatch(
+      new RegExp(`^id-1/${db.tasks[0].id}/[0-9a-f-]{36}-Rechnung_Marz.pdf$`),
+    );
+
+    await page.evaluate(() => {
+      (window as unknown as { opened: string[] }).opened = [];
+      window.open = (url) => (
+        (window as unknown as { opened: string[] }).opened.push(String(url)),
+        null
+      );
+    });
+    await dialog.getByRole('button', { name: /^Rechnung März\.pdf/ }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { opened: string[] }).opened[0]))
+      .toContain('/storage/v1/object/sign/attachments/');
+
+    page.once('dialog', (d) => d.accept());
+    await dialog.getByRole('button', { name: 'Anhang Rechnung März.pdf löschen' }).click();
+    await expect(dialog.getByRole('button', { name: /^Rechnung März\.pdf/ })).toBeHidden();
+    expect(db.attachments).toHaveLength(0);
+    expect(db.storage).toHaveLength(0);
+  });
+
+  test('zu grosse oder nicht erlaubte Dateien werden abgelehnt', async ({ page }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Anhang-Test');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.getByText('Anhang-Test', { exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Datei anhängen').setInputFiles({
+      name: 'gross.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+    });
+    await expect(dialog.getByText('Die Datei ist grösser als 5 MB.')).toBeVisible();
+    await dialog.getByLabel('Datei anhängen').setInputFiles({
+      name: 'programm.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.alloc(10),
+    });
+    await expect(dialog.getByText(/Erlaubt sind Fotos/)).toBeVisible();
+    expect(db.attachments).toHaveLength(0);
+  });
+
+  test('ohne Verbindung wird verständlich abgelehnt', async ({ page, context }) => {
+    await page.getByLabel('Pendenz schnell erfassen').fill('Offline-Anhang');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    await page.getByText('Offline-Anhang', { exact: true }).click();
+    await context.setOffline(true);
+    await page
+      .getByRole('dialog')
+      .getByLabel('Datei anhängen')
+      .setInputFiles({ name: 'a.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(10) });
+    await expect(page.getByText('Anhänge brauchen eine Internetverbindung.')).toBeVisible();
+    await context.setOffline(false);
   });
 });

@@ -23,6 +23,9 @@ export async function mockSupabase(page: Page) {
     offline: boolean;
     reminders: Row[];
     savedFilters: Row[];
+    templates: Row[];
+    attachments: Row[];
+    storage: string[];
     tags: Row[];
     taskTags: { task_id: string; tag_id: string }[];
     pushSubscriptions: Row[];
@@ -41,6 +44,9 @@ export async function mockSupabase(page: Page) {
     offline: false,
     reminders: [],
     savedFilters: [],
+    templates: [],
+    attachments: [],
+    storage: [],
     tags: [],
     taskTags: [],
     pushSubscriptions: [],
@@ -86,7 +92,13 @@ export async function mockSupabase(page: Page) {
     const table = url.pathname.split('/').pop()!;
     const eq = url.searchParams.get('id')?.replace('eq.', '');
     const single = (req.headers()['accept'] ?? '').includes('pgrst.object');
-    const body = req.postData() ? JSON.parse(req.postData()!) : null;
+    const body = (() => {
+      try {
+        return req.postData() ? JSON.parse(req.postData()!) : null;
+      } catch {
+        return null; // z. B. mehrteilige Datei-Uploads
+      }
+    })();
     const now = new Date().toISOString();
 
     if (url.pathname.endsWith('/rpc/rotate_calendar_token')) {
@@ -172,6 +184,56 @@ export async function mockSupabase(page: Page) {
         profiles: me,
       }));
       return json(route, [...own, ...db.extraMembers]);
+    }
+    if (url.pathname.includes('/storage/v1/')) {
+      const path = decodeURIComponent(url.pathname.split('/attachments/')[1] ?? '');
+      if (url.pathname.includes('/object/sign/')) {
+        return json(route, { signedURL: `/object/sign/attachments/${path}?token=abc` });
+      }
+      if (req.method() === 'POST') {
+        db.storage.push(path);
+        return json(route, { Key: `attachments/${path}` });
+      }
+      if (req.method() === 'DELETE') {
+        db.storage = db.storage.filter((p) => !(body.prefixes as string[]).includes(p));
+        return json(route, []);
+      }
+    }
+    if (table === 'attachments') {
+      if (req.method() === 'GET') {
+        const task = url.searchParams.get('task_id')?.replace('eq.', '');
+        return json(
+          route,
+          db.attachments.filter((a) => a.task_id === task),
+        );
+      }
+      if (req.method() === 'POST') {
+        const row = { id: newId(), created_at: now, ...body };
+        db.attachments.push(row);
+        return route.fulfill({ status: 201, headers: cors });
+      }
+      if (req.method() === 'DELETE') {
+        db.attachments = db.attachments.filter((a) => a.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
+    if (table === 'templates') {
+      if (req.method() === 'GET') return json(route, db.templates);
+      if (req.method() === 'POST') {
+        db.templates.push({ id: newId(), ...body });
+        return route.fulfill({ status: 201, headers: cors });
+      }
+      if (req.method() === 'PATCH') {
+        Object.assign(
+          db.templates.find((t) => t.id === eq)!,
+          body,
+        );
+        return route.fulfill({ status: 204, headers: cors });
+      }
+      if (req.method() === 'DELETE') {
+        db.templates = db.templates.filter((t) => t.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
     }
     if (table === 'saved_filters') {
       if (req.method() === 'GET') return json(route, db.savedFilters);
@@ -340,6 +402,20 @@ export async function mockSupabase(page: Page) {
           route,
           db.tasks.filter((t) => (trash ? t.deleted_at : !t.deleted_at)).map(withTags),
         );
+      }
+      if (req.method() === 'POST' && Array.isArray(body)) {
+        for (const r of body)
+          db.tasks.push({
+            notes_md: '',
+            subtasks: [],
+            created_at: now,
+            updated_at: now,
+            deleted_at: null,
+            focus_date: null,
+            assignee_id: null,
+            ...r,
+          });
+        return route.fulfill({ status: 201, headers: cors });
       }
       if (req.method() === 'POST') {
         const row = {

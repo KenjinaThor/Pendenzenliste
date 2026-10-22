@@ -6,6 +6,8 @@ export interface NewTaskDefaults {
   list_id?: string;
   /** vorbelegtes Datum (YYYY-MM-DD) */
   date?: string;
+  /** Pendenz aus dieser Vorlage vorbelegen */
+  templateId?: string;
 }
 
 type Editing =

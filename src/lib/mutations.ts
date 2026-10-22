@@ -181,10 +181,17 @@ export function isNetworkError(error: unknown): boolean {
  * Neuladen der App fortgesetzt werden (die Funktionen selbst lassen sich nicht speichern).
  */
 export function registerMutationDefaults(qc: QueryClient) {
-  const refresh =
-    (...keys: string[]) =>
-    () =>
-      Promise.all(keys.map((k) => qc.invalidateQueries({ queryKey: [k] }))).then(() => undefined);
+  // Erst wenn die ganze Warteschlange abgearbeitet ist, die Daten neu laden. Sonst würden Zwischenstände
+  // (z. B. die Pendenz ist gespeichert, ihre Tags noch nicht) kurz angezeigt und die lokale Ansicht überschreiben.
+  const refresh = () => () => {
+    const waiting = qc.getMutationCache().findAll({
+      predicate: (m) => m.state.status === 'pending' && m.options.scope?.id === 'sync',
+    }).length;
+    if (waiting > 1) return undefined; // die laufende Änderung zählt mit; die letzte lädt neu
+    return Promise.all(
+      ['tasks', 'trash', 'reminders'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+    ).then(() => undefined);
+  };
   const queued = {
     scope: { id: 'sync' }, // gemeinsame Warteschlange: eine nach der anderen, in der Reihenfolge der Eingabe
     networkMode: 'online' as const, // ohne Verbindung warten
@@ -194,41 +201,41 @@ export function registerMutationDefaults(qc: QueryClient) {
   qc.setMutationDefaults(MK.updateTask, {
     ...queued,
     mutationFn: updateTask,
-    onSettled: refresh('tasks', 'trash'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.createTask, {
     ...queued,
     mutationFn: createTask,
-    onSettled: refresh('tasks'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.addSubtasks, {
     ...queued,
     mutationFn: addSubtasks,
-    onSettled: refresh('tasks'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.updateSubtask, {
     ...queued,
     mutationFn: updateSubtask,
-    onSettled: refresh('tasks'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.deleteSubtask, {
     ...queued,
     mutationFn: deleteSubtask,
-    onSettled: refresh('tasks'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.setTags, {
     ...queued,
     mutationFn: setTags,
-    onSettled: refresh('tasks'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.addReminders, {
     ...queued,
     mutationFn: addReminders,
-    onSettled: refresh('reminders'),
+    onSettled: refresh(),
   });
   qc.setMutationDefaults(MK.deleteReminder, {
     ...queued,
     mutationFn: deleteReminder,
-    onSettled: refresh('reminders'),
+    onSettled: refresh(),
   });
 }

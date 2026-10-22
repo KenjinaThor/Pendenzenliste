@@ -89,6 +89,12 @@ export function NavContent() {
         <NavLink to="/kalender" className={link}>
           <span aria-hidden>📆</span> Kalender verbinden
         </NavLink>
+        <NavLink to="/vorlagen" className={link}>
+          <span aria-hidden>📑</span> Vorlagen
+        </NavLink>
+        <NavLink to="/daten" className={link}>
+          <span aria-hidden>📦</span> Import &amp; Export
+        </NavLink>
         <NavLink to="/papierkorb" className={link}>
           <span aria-hidden>🗑️</span> Papierkorb
         </NavLink>

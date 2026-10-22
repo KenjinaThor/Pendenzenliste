@@ -131,3 +131,24 @@ start_time desc limit 5;` die letzten Läufe. Der Zeitplan räumt täglich auch 
 - **Meine 3 für heute:** mit ☆ bis zu drei Pendenzen als Tagesfokus markieren; sie stehen oben in «Heute».
 - **Statistik:** erledigte Pendenzen pro Woche, Überfälligkeitsquote, Serie.
 - **Einstellungen:** Name ändern, Darstellung Hell/Dunkel/System.
+
+## Komfort-Funktionen, Teil 3 (Phase 8c)
+
+**Einmalig im Supabase SQL Editor ausführen:** `supabase/migrations/20261026000006_offline_attachments.sql`
+(Zeitstempel pro Feld für die Synchronisierung und der private Speicher-Bucket für Anhänge, max. 5 MB pro Datei).
+Ohne diese Migration funktioniert das Speichern von Änderungen an Pendenzen nicht, weil die App sie über die neue
+Funktion `update_task_fields` überträgt.
+
+- **Offline-Betrieb:** Die App öffnet sich auch ohne Verbindung mit den zuletzt geladenen Daten (IndexedDB). Änderungen
+  an Pendenzen, Unteraufgaben, Tags und Erinnerungen werden vorgemerkt (Hinweis oben: «Offline – n Änderungen warten»)
+  und bei Verbindung automatisch übertragen – auch nach einem Neuladen. **Konfliktregel:** Pro Feld gewinnt die Änderung
+  mit dem neueren Zeitstempel der Bearbeitung (nicht der Übertragung). Nur mit Verbindung gehen: wiederkehrende Pendenzen
+  abhaken, Kommentare, Einladungen, Listen anlegen, Anhänge. Beim Abmelden wird der lokale Speicher geleert.
+- **Dateianhänge:** In einer Pendenz «📎 Datei» oder «📷 Foto aufnehmen» (Fotos und PDF, max. 5 MB; grosse Fotos werden
+  automatisch verkleinert). Zugriff haben nur Mitglieder der Liste. Hinweis: Beim endgültigen Löschen einer Pendenz
+  bleibt die Datei im Speicher liegen (sie ist dann nicht mehr abrufbar, belegt aber Platz im Gratis-Kontingent).
+- **Vorlagen:** Wiederverwendbare Pendenzen mit Unteraufgaben und Tags (Menü «Vorlagen»; in einer Pendenz «Als Vorlage
+  speichern»; beim Erstellen «Aus Vorlage …»).
+- **Import / Export:** Menü «Import & Export». Export als CSV (Excel, mit `;` getrennt) oder vollständiges Backup
+  (JSON inkl. Vorlagen und Intelligenten Listen). Import von CSV (Spaltennamen wie Titel, Fällig, Priorität, Liste, Tags;
+  auch deutsche/englische Varianten) oder einem Backup; fehlende Listen werden angelegt, höchstens 2000 Pendenzen pro Import.

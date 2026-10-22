@@ -16,6 +16,8 @@ import { ListPage } from '../features/lists/ListPage';
 import { ListsPage } from '../features/lists/ListsPage';
 import { SearchPage } from '../features/search/SearchPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { DataPage } from '../features/data/DataPage';
+import { TemplatesPage } from '../features/templates/TemplatesPage';
 import { TrashPage } from '../features/trash/TrashPage';
 import { ViewPage } from '../features/views/ViewPage';
 import { clearLocalData, persister, queryClient } from '../lib/queryClient';
@@ -37,6 +39,8 @@ function Authenticated() {
         <Route path="/statistik" element={<StatsPage />} />
         <Route path="/listen" element={<ListsPage />} />
         <Route path="/suche" element={<SearchPage />} />
+        <Route path="/daten" element={<DataPage />} />
+        <Route path="/vorlagen" element={<TemplatesPage />} />
         <Route path="/papierkorb" element={<TrashPage />} />
         <Route path="/mitteilungen" element={<NotificationsPage />} />
         <Route path="/einladung/:token" element={<AcceptInvitePage />} />

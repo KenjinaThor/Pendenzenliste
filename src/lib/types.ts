@@ -146,3 +146,29 @@ export interface SavedFilter {
   name: string;
   filter: unknown;
 }
+
+/** Inhalt einer Vorlage: ein wiederverwendbares Pendenzen-Set (z. B. «Ferienvorbereitung» mit 10 Unterpunkten) */
+export interface TemplatePayload {
+  title: string;
+  notes_md: string;
+  priority: Priority;
+  duration_min: number | null;
+  tags: string[];
+  subtasks: string[];
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  payload: TemplatePayload;
+}
+
+export interface Attachment {
+  id: string;
+  task_id: string;
+  storage_path: string;
+  file_name: string;
+  mime: string | null;
+  size_bytes: number;
+  created_at: string;
+}
