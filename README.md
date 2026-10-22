@@ -57,3 +57,16 @@ Die App liefert einen persönlichen ICS-Feed (Edge Function `calendar`). Einrich
 Der Feed enthält alle offenen Pendenzen mit Fälligkeit aus den gewählten Listen (ganztägig oder mit Uhrzeit und
 Dauer, Notizen, Unteraufgaben, Rück-Link und Erinnerung). Auf demselben Link funktionieren auch Google Kalender und
 Outlook. Optional kann in Supabase (Edge Functions → Secrets) `APP_URL` gesetzt werden, falls sich die App-Adresse ändert.
+
+## Teilen und Zusammenarbeit (Phase 6)
+
+1. **Migration:** im Supabase **SQL Editor** den Inhalt von `supabase/migrations/20261023000003_sharing_realtime.sql`
+   ausführen (aktiviert Echtzeit-Updates und die Benachrichtigungen bei Zuweisung und @Erwähnung).
+2. Liste öffnen → **👥 Teilen**: Mitglieder sehen, Rollen setzen (Bearbeiter / Leser), Einladungslink erstellen.
+   Mit E-Mail-Adresse erhält die Person automatisch Zugriff, sobald sie sich mit dieser Adresse anmeldet.
+3. Pendenzen lassen sich Mitgliedern zuweisen («Mir zugewiesen»), kommentieren (`@Name` erwähnt jemanden) und der
+   Verlauf zeigt alle Änderungen. Änderungen erscheinen live auf allen Geräten.
+
+**Tests der Zugriffsregeln:** `supabase/tests/run.sh` führt alle Migrationen und `supabase/tests/rls.test.sql`
+gegen eine leere Postgres-Datenbank aus (läuft auch in der CI). Lokal z. B. mit
+`DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres supabase/tests/run.sh`.

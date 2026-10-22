@@ -11,7 +11,27 @@ export async function mockSupabase(page: Page) {
     lists: Row[];
     tasks: (Row & { subtasks: Row[] })[];
     calendar: Row | null;
-  } = { lists: [], tasks: [], calendar: null };
+    /** weitere Mitglieder (neben der angemeldeten Person) */
+    extraMembers: Row[];
+    myRole: 'owner' | 'editor' | 'viewer';
+    comments: Row[];
+    invites: Row[];
+    notifications: Row[];
+    activity: Row[];
+    rpcCalls: { name: string; args: unknown }[];
+  } = {
+    lists: [],
+    tasks: [],
+    calendar: null,
+    extraMembers: [],
+    myRole: 'owner',
+    comments: [],
+    invites: [],
+    notifications: [],
+    activity: [],
+    rpcCalls: [],
+  };
+  const me = { id: 'user-1', name: 'Anna', avatar_url: null, email: 'a@x.ch' };
   let counter = 0;
   const newId = () => `id-${++counter}`;
   const cors = {
@@ -42,7 +62,73 @@ export async function mockSupabase(page: Page) {
       db.calendar = { id: 'user-1', token, list_ids: db.calendar?.list_ids ?? null };
       return json(route, token);
     }
-    if (url.pathname.includes('/rpc/')) return json(route, 0);
+    if (url.pathname.includes('/rpc/')) {
+      const name = url.pathname.split('/').pop()!;
+      db.rpcCalls.push({ name, args: body });
+      if (name === 'create_invite') {
+        const token = 'ab'.repeat(24);
+        db.invites.push({
+          id: newId(),
+          list_id: body.p_list,
+          email: body.p_email,
+          role: body.p_role,
+          expires_at: '2099-01-01T00:00:00Z',
+          created_at: now,
+        });
+        return json(route, token);
+      }
+      if (name === 'accept_invite') return json(route, db.lists[0]?.id ?? 'id-1');
+      return json(route, 0);
+    }
+
+    if (table === 'list_members' && req.method() === 'GET') {
+      const own = db.lists.map((l) => ({
+        list_id: l.id,
+        user_id: me.id,
+        role: db.myRole,
+        profiles: me,
+      }));
+      return json(route, [...own, ...db.extraMembers]);
+    }
+    if (table === 'profiles') return json(route, single ? me : [me]);
+    if (table === 'notifications') return json(route, db.notifications);
+    if (table === 'list_invites') {
+      if (req.method() === 'DELETE') {
+        db.invites = db.invites.filter((i) => i.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+      return json(route, db.invites);
+    }
+    if (table === 'activity_log') {
+      const task = url.searchParams.get('task_id')?.replace('eq.', '');
+      return json(
+        route,
+        db.activity.filter((a) => a.task_id === task),
+      );
+    }
+    if (table === 'comments') {
+      const task = url.searchParams.get('task_id')?.replace('eq.', '');
+      if (req.method() === 'GET')
+        return json(
+          route,
+          db.comments.filter((c) => c.task_id === task),
+        );
+      if (req.method() === 'POST') {
+        const row = {
+          id: newId(),
+          author_id: me.id,
+          created_at: now,
+          profiles: { name: me.name, avatar_url: null },
+          ...body,
+        };
+        db.comments.push(row);
+        return json(route, [row], 201);
+      }
+      if (req.method() === 'DELETE') {
+        db.comments = db.comments.filter((c) => c.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
 
     if (table === 'calendar_tokens') {
       if (req.method() === 'GET')

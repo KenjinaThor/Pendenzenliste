@@ -4,6 +4,7 @@ import { useLists, useSetDone } from '../../lib/api';
 import { formatDue } from '../../lib/dates';
 import type { Task } from '../../lib/types';
 import { isDone, isOverdue } from '../../lib/views';
+import { usePermissions } from '../sharing/usePermissions';
 import { useEditor } from './EditorContext';
 
 const PRIORITY_COLOR = { high: 'bg-red-500', medium: 'bg-amber-400', low: 'bg-slate-300' } as const;
@@ -12,6 +13,7 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
   const { openTask } = useEditor();
   const { data: lists = [] } = useLists();
   const setDone = useSetDone();
+  const perms = usePermissions();
   const snackbar = useSnackbar();
   const [checking, setChecking] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -46,6 +48,7 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
         aria-checked={checked}
         aria-label={`${task.title} als erledigt markieren`}
         onClick={toggle}
+        disabled={!perms.canEdit(task.list_id)}
         className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 active:scale-90"
         style={{
           borderColor: list?.color ?? '#94a3b8',
@@ -88,6 +91,14 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
           )}
           {task.status === 'in_progress' && <span>In Arbeit</span>}
           {task.status === 'waiting' && <span>Wartend</span>}
+          {task.assignee_id && perms.isShared(task.list_id) && (
+            <span>
+              👤{' '}
+              {task.assignee_id === perms.userId
+                ? 'ich'
+                : perms.nameOf(task.list_id, task.assignee_id)}
+            </span>
+          )}
           {showList && list && (
             <span>
               {list.emoji} {list.name}

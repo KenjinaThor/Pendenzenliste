@@ -51,3 +51,63 @@ export const STATUS_LABEL: Record<Status, string> = {
   waiting: 'Wartend',
   done: 'Erledigt',
 };
+
+export type Role = 'viewer' | 'editor' | 'owner';
+
+export const ROLE_LABEL: Record<Role, string> = {
+  owner: 'Besitzer',
+  editor: 'Bearbeiter',
+  viewer: 'Leser',
+};
+
+export interface Profile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  email: string | null;
+}
+
+export interface Member {
+  list_id: string;
+  user_id: string;
+  role: Role;
+  profiles: Profile | null;
+}
+
+export interface Invite {
+  id: string;
+  list_id: string;
+  email: string | null;
+  role: Role;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface Comment {
+  id: string;
+  task_id: string;
+  author_id: string | null;
+  body: string;
+  mentions: string[];
+  created_at: string;
+  profiles: { name: string; avatar_url: string | null } | null;
+}
+
+export interface ActivityEntry {
+  id: number;
+  task_id: string;
+  actor_id: string | null;
+  action: 'created' | 'updated' | 'commented';
+  diff: Record<string, { from: unknown; to: unknown }> | { excerpt?: string } | null;
+  created_at: string;
+  profiles: { name: string } | null;
+}
+
+export interface AppNotification {
+  id: string;
+  kind: 'assigned' | 'mention';
+  task_id: string | null;
+  payload: { task_title?: string; actor_name?: string; excerpt?: string };
+  read_at: string | null;
+  created_at: string;
+}

@@ -137,3 +137,119 @@ test('Rück-Link aus dem Kalender öffnet die Pendenz', async ({ page }) => {
   await page.goto(`/Pendenzenliste/?from=calendar#/pendenz/${id}`);
   await expect(page.getByRole('dialog').getByLabel('Titel')).toHaveValue('Rückruf');
 });
+
+const ben = {
+  list_id: 'id-1',
+  user_id: 'user-2',
+  role: 'editor',
+  profiles: { id: 'user-2', name: 'Ben', avatar_url: null, email: 'ben@x.ch' },
+};
+
+test('Liste teilen: Mitglieder sehen und Einladungslink erstellen', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  db.extraMembers.push(ben);
+  await page.reload();
+  await page.getByRole('link', { name: /Persönlich/ }).click();
+  await page.getByRole('button', { name: 'Teilen und Mitglieder' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Anna (du)')).toBeVisible();
+  await expect(dialog.getByText('Ben', { exact: true })).toBeVisible();
+
+  await dialog.getByLabel('E-Mail-Adresse (optional)').fill('cleo@x.ch');
+  await dialog.getByRole('button', { name: 'Einladungslink erstellen' }).click();
+  await expect(dialog.getByLabel('Einladungslink')).toHaveValue(/#\/einladung\/[0-9a-f]{48}$/);
+  await expect(dialog.getByText(/cleo@x.ch · Bearbeiter/)).toBeVisible();
+  expect(db.rpcCalls.find((c) => c.name === 'create_invite')?.args).toMatchObject({
+    p_role: 'editor',
+    p_email: 'cleo@x.ch',
+  });
+});
+
+test('Einladungslink annehmen öffnet die Liste', async ({ page }) => {
+  await page.getByLabel('Pendenz schnell erfassen').fill('x'); // sorgt dafür, dass die Liste geladen ist
+  await page.goto('/Pendenzenliste/?from=invite#/einladung/' + 'ab'.repeat(24));
+  await expect(page).toHaveURL(/#\/liste\/id-1$/);
+  expect(db.rpcCalls.some((c) => c.name === 'accept_invite')).toBe(true);
+});
+
+test('Zuweisung, Kommentar mit @Erwähnung und Verlauf', async ({ page }) => {
+  db.extraMembers.push(ben);
+  await page.reload();
+  await page.getByLabel('Pendenz schnell erfassen').fill('Fenster putzen');
+  await page.keyboard.press('Enter');
+  await page.getByText('Fenster putzen').click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Zugewiesen an').selectOption({ label: 'Ben' });
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('👤 Ben')).toBeVisible();
+  expect(db.tasks[0].assignee_id).toBe('user-2');
+
+  await page.getByText('Fenster putzen').click();
+  await dialog.getByLabel('Kommentar schreiben').fill('Danke @Be');
+  await dialog.getByRole('option', { name: '@Ben' }).click();
+  await expect(dialog.getByLabel('Kommentar schreiben')).toHaveValue('Danke @Ben ');
+  await dialog.getByRole('button', { name: 'Senden' }).click();
+  await expect(dialog.getByText('@Ben', { exact: true })).toBeVisible(); // hervorgehobene Erwähnung
+  expect(db.comments[0].mentions).toEqual(['user-2']);
+});
+
+test('Leser sehen Pendenzen, können sie aber nicht ändern', async ({ page }) => {
+  db.myRole = 'viewer';
+  db.tasks.push({
+    id: 'task-v',
+    list_id: 'id-1',
+    title: 'Nur lesen',
+    notes_md: '',
+    due_at: null,
+    due_all_day: false,
+    duration_min: null,
+    priority: 'medium',
+    status: 'open',
+    assignee_id: null,
+    rrule: null,
+    completed_at: null,
+    deleted_at: null,
+    position: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    subtasks: [],
+  });
+  db.lists.push({
+    id: 'id-1',
+    owner_id: 'user-9',
+    name: 'Geteilt',
+    color: '#6366f1',
+    emoji: '📋',
+    position: 0,
+    archived_at: null,
+  });
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.reload();
+  await page.getByRole('link', { name: /Geteilt/ }).click();
+  await expect(page.getByText('Du hast in dieser Liste nur Leserechte.')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /Nur lesen/ })).toBeDisabled();
+  await page.getByText('Nur lesen', { exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Du hast in dieser Liste nur Leserechte.')).toBeVisible();
+  await expect(dialog.getByLabel('Titel')).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'In den Papierkorb' })).toHaveCount(0);
+});
+
+test('Mitteilungen werden angezeigt', async ({ page }) => {
+  db.notifications.push({
+    id: 'n1',
+    kind: 'mention',
+    task_id: 'id-2',
+    read_at: null,
+    created_at: new Date().toISOString(),
+    payload: { task_title: 'Steuern', actor_name: 'Ben', excerpt: 'Schaust du das an?' },
+  });
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.reload();
+  await page.getByRole('link', { name: /Mitteilungen/ }).click();
+  await expect(page.getByText('Ben hat dich in «Steuern» erwähnt')).toBeVisible();
+  await expect(page.getByText('Schaust du das an?')).toBeVisible();
+});

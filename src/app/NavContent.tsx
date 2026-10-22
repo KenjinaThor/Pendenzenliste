@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
-import { useLists, useTasks } from '../lib/api';
+import { useLists, useNotifications, useTasks } from '../lib/api';
+import { usePermissions } from '../features/sharing/usePermissions';
 import { countFor, isDone, VIEWS } from '../lib/views';
 import { useAuth } from '../features/auth/AuthProvider';
 import { useEditor } from '../features/tasks/EditorContext';
@@ -13,6 +14,9 @@ export function NavContent() {
   const { data: lists = [] } = useLists();
   const { session } = useAuth();
   const { openList } = useEditor();
+  const perms = usePermissions();
+  const { data: notifications = [] } = useNotifications();
+  const unread = notifications.filter((n) => !n.read_at).length;
   const now = new Date();
 
   return (
@@ -39,7 +43,10 @@ export function NavContent() {
       {lists.map((l) => (
         <NavLink key={l.id} to={`/liste/${l.id}`} className={link}>
           <span aria-hidden>{l.emoji}</span>
-          <span className="flex-1 truncate">{l.name}</span>
+          <span className="flex-1 truncate">
+            {l.name}
+            {perms.isShared(l.id) && <span aria-label="geteilt"> 👥</span>}
+          </span>
           <span className="text-sm text-slate-500">
             {tasks.filter((t) => t.list_id === l.id && !isDone(t)).length || ''}
           </span>
@@ -52,6 +59,13 @@ export function NavContent() {
         <span aria-hidden>＋</span> Neue Liste
       </button>
       <div className="mt-4 border-t border-slate-200 pt-2 dark:border-slate-700">
+        <NavLink to="/mitteilungen" className={link}>
+          <span aria-hidden>🔔</span>
+          <span className="flex-1">Mitteilungen</span>
+          {unread > 0 && (
+            <span className="rounded-full bg-indigo-600 px-2 text-xs text-white">{unread}</span>
+          )}
+        </NavLink>
         <NavLink to="/kalender" className={link}>
           <span aria-hidden>📆</span> Kalender verbinden
         </NavLink>

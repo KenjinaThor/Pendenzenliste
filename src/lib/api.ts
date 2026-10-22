@@ -1,6 +1,18 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
-import type { Priority, Status, Subtask, Task, TodoList } from './types';
+import type {
+  ActivityEntry,
+  AppNotification,
+  Comment,
+  Invite,
+  Member,
+  Priority,
+  Role,
+  Status,
+  Subtask,
+  Task,
+  TodoList,
+} from './types';
 
 const keys = { lists: ['lists'], tasks: ['tasks'], trash: ['trash'] } as const;
 
@@ -77,7 +89,11 @@ export function useSaveList() {
       if (error) throw error;
       return data as TodoList;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.lists }),
+    // erst zurückkehren, wenn die Listen neu geladen sind (sonst leitet die neue Seite sofort weiter)
+    onSuccess: async () => {
+      void qc.invalidateQueries({ queryKey: ['members'] }); // die Besitzer-Mitgliedschaft entsteht per Trigger
+      await qc.invalidateQueries({ queryKey: keys.lists });
+    },
   });
 }
 
@@ -92,6 +108,7 @@ export function useDeleteList() {
       void qc.invalidateQueries({ queryKey: keys.lists });
       void qc.invalidateQueries({ queryKey: keys.tasks });
       void qc.invalidateQueries({ queryKey: keys.trash });
+      void qc.invalidateQueries({ queryKey: ['members'] });
     },
   });
 }
@@ -106,6 +123,7 @@ export interface TaskInput {
   duration_min?: number | null;
   priority?: Priority;
   status?: Status;
+  assignee_id?: string | null;
 }
 
 type TaskPatch = Partial<Omit<Task, 'id' | 'subtasks'>>;
@@ -320,3 +338,230 @@ export function useSaveCalendarLists() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['calendar-feed'] }),
   });
 }
+
+// ---------------------------------------------------------------- Teilen
+
+const sharingKeys = {
+  members: ['members'],
+  invites: (listId: string) => ['invites', listId],
+  comments: (taskId: string) => ['comments', taskId],
+  activity: (taskId: string) => ['activity', taskId],
+  notifications: ['notifications'],
+} as const;
+
+/** Mitglieder aller meiner Listen (mit Profil) */
+export function useMembers() {
+  return useQuery({
+    queryKey: sharingKeys.members,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('list_members')
+        .select('list_id, user_id, role, profiles(id, name, avatar_url, email)');
+      if (error) throw error;
+      return data as unknown as Member[];
+    },
+  });
+}
+
+export function usePendingInvites(listId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: sharingKeys.invites(listId),
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('list_invites')
+        .select('id, list_id, email, role, expires_at, created_at')
+        .eq('list_id', listId)
+        .is('accepted_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Invite[];
+    },
+  });
+}
+
+export function useCreateInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, role, email }: { listId: string; role: Role; email?: string }) => {
+      const { data, error } = await supabase.rpc('create_invite', {
+        p_list: listId,
+        p_role: role,
+        p_email: email?.trim() || null,
+      });
+      if (error) throw error;
+      return data as string; // Klartext-Token, nur jetzt verfügbar
+    },
+    onSuccess: (_t, { listId }) => qc.invalidateQueries({ queryKey: sharingKeys.invites(listId) }),
+  });
+}
+
+export function useRevokeInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; listId: string }) => {
+      const { error } = await supabase.from('list_invites').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_v, { listId }) => qc.invalidateQueries({ queryKey: sharingKeys.invites(listId) }),
+  });
+}
+
+export function useAcceptInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { data, error } = await supabase.rpc('accept_invite', { p_token: token });
+      if (error) throw error;
+      return data as string; // Listen-ID
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.lists });
+      void qc.invalidateQueries({ queryKey: keys.tasks });
+      void qc.invalidateQueries({ queryKey: sharingKeys.members });
+    },
+  });
+}
+
+export function useSetMemberRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      listId,
+      userId,
+      role,
+    }: {
+      listId: string;
+      userId: string;
+      role: Role;
+    }) => {
+      const { error } = await supabase
+        .from('list_members')
+        .update({ role })
+        .eq('list_id', listId)
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: sharingKeys.members }),
+  });
+}
+
+/** Mitglied entfernen oder selbst die Liste verlassen */
+export function useRemoveMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, userId }: { listId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('list_members')
+        .delete()
+        .eq('list_id', listId)
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: sharingKeys.members });
+      void qc.invalidateQueries({ queryKey: keys.lists });
+      void qc.invalidateQueries({ queryKey: keys.tasks });
+    },
+  });
+}
+
+// ---------------------------------------------------------------- Kommentare, Verlauf
+export function useComments(taskId: string | undefined) {
+  return useQuery({
+    queryKey: sharingKeys.comments(taskId ?? ''),
+    enabled: Boolean(taskId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('id, task_id, author_id, body, mentions, created_at, profiles(name, avatar_url)')
+        .eq('task_id', taskId!)
+        .order('created_at');
+      if (error) throw error;
+      return data as unknown as Comment[];
+    },
+  });
+}
+
+export function useAddComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      body,
+      mentions,
+    }: {
+      taskId: string;
+      body: string;
+      mentions: string[];
+    }) => {
+      const { error } = await supabase.from('comments').insert({ task_id: taskId, body, mentions });
+      if (error) throw error;
+    },
+    onSuccess: (_v, { taskId }) => {
+      void qc.invalidateQueries({ queryKey: sharingKeys.comments(taskId) });
+      void qc.invalidateQueries({ queryKey: sharingKeys.activity(taskId) });
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; taskId: string }) => {
+      const { error } = await supabase.from('comments').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_v, { taskId }) => qc.invalidateQueries({ queryKey: sharingKeys.comments(taskId) }),
+  });
+}
+
+export function useActivity(taskId: string | undefined) {
+  return useQuery({
+    queryKey: sharingKeys.activity(taskId ?? ''),
+    enabled: Boolean(taskId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('id, task_id, actor_id, action, diff, created_at, profiles(name)')
+        .eq('task_id', taskId!)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data as unknown as ActivityEntry[];
+    },
+  });
+}
+
+// ---------------------------------------------------------------- Mitteilungen
+export function useNotifications() {
+  return useQuery({
+    queryKey: sharingKeys.notifications,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, kind, task_id, payload, read_at, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data as AppNotification[];
+    },
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .is('read_at', null);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: sharingKeys.notifications }),
+  });
+}
+
+export const queryKeys = { ...keys, ...sharingKeys };

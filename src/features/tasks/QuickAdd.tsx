@@ -1,23 +1,26 @@
 import { useState, type FormEvent } from 'react';
 import { useCreateTask, useLists } from '../../lib/api';
+import { usePermissions } from '../sharing/usePermissions';
 import { buildDue, toDateInput } from '../../lib/dates';
 
 /** Schnelles Erfassen: Titel eintippen, Enter. Optional mit Datum «heute» und fester Liste. */
 export function QuickAdd({ listId, today = false }: { listId?: string; today?: boolean }) {
   const { data: lists = [] } = useLists();
   const create = useCreateTask();
+  const perms = usePermissions();
+  const writable = lists.filter((l) => perms.canEdit(l.id));
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   function targetList(): string | undefined {
-    if (listId) return listId;
+    if (listId) return perms.canEdit(listId) ? listId : undefined;
     let last: string | null = null;
     try {
       last = localStorage.getItem('lastListId');
     } catch {
       /* ignorieren */
     }
-    return lists.find((l) => l.id === last)?.id ?? lists[0]?.id;
+    return writable.find((l) => l.id === last)?.id ?? writable[0]?.id;
   }
 
   async function onSubmit(e: FormEvent) {

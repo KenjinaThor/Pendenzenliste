@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { NavLink, Outlet, useMatch } from 'react-router-dom';
+import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { useLists, useSaveList, useTasks } from '../lib/api';
+import { supabase } from '../lib/supabase';
+import { useRealtimeSync } from '../features/sharing/useRealtimeSync';
 import { countFor } from '../lib/views';
 import { useAuth } from '../features/auth/AuthProvider';
 import { InstallHint } from '../features/onboarding/InstallHint';
@@ -41,8 +43,25 @@ function useEnsureDefaultList() {
   }, [isSuccess, lists, save]);
 }
 
+/** Offene Einladungen annehmen: per E-Mail-Adresse und per zwischengespeichertem Einladungslink. */
+function useInvites() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    void supabase.rpc('claim_email_invites');
+    let token: string | null = null;
+    try {
+      token = localStorage.getItem('pendingInvite');
+    } catch {
+      /* ignorieren */
+    }
+    if (token) navigate(`/einladung/${token}`, { replace: true });
+  }, [navigate]);
+}
+
 export function AppShell() {
   useEnsureDefaultList();
+  useRealtimeSync();
+  useInvites();
   const { data: tasks = [] } = useTasks();
   const { session } = useAuth();
   const now = new Date();
