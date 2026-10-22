@@ -1,0 +1,18 @@
+name: Supabase Keep-alive
+# Supabase pausiert Gratis-Projekte nach 7 Tagen Inaktivität. Dieser Job pingt die API alle 3 Tage an.
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Datenbank anpingen
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$URL" || { echo "Secrets nicht gesetzt – übersprungen"; exit 0; }
+          # Auch eine Antwort 401 beweist, dass die Datenbank wach ist
+          curl -sS "$URL/rest/v1/profiles?select=id&limit=1" -H "apikey: $KEY" -o /dev/null -w "HTTP %{http_code}\n"

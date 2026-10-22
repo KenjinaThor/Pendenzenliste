@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/app/App.tsx","./src/lib/format.test.ts","./src/lib/format.ts","./vite.config.ts"],"version":"6.0.3"}
+{"root":["./src/main.tsx","./src/app/App.tsx","./src/features/auth/AuthProvider.tsx","./src/features/auth/LoginPage.tsx","./src/features/onboarding/InstallHint.tsx","./src/features/settings/SettingsPage.tsx","./src/lib/format.test.ts","./src/lib/format.ts","./src/lib/supabase.ts","./vite.config.ts"],"version":"6.0.3"}
