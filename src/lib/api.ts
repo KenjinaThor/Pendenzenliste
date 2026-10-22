@@ -11,6 +11,7 @@ import type {
   Reminder,
   Priority,
   Role,
+  SavedFilter,
   Status,
   Subtask,
   Tag,
@@ -748,7 +749,7 @@ export function useMyProfile(userId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, timezone, daily_digest_time')
+        .select('id, name, timezone, canton, theme, daily_digest_time')
         .eq('id', userId!)
         .maybeSingle();
       if (error) throw error;
@@ -761,7 +762,11 @@ export function useUpdateProfile(userId: string | undefined) {
   const qc = useQueryClient();
   const key = ['profile', userId ?? ''];
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<MyProfile, 'timezone' | 'daily_digest_time'>>) => {
+    mutationFn: async (
+      patch: Partial<
+        Pick<MyProfile, 'name' | 'timezone' | 'canton' | 'theme' | 'daily_digest_time'>
+      >,
+    ) => {
       const { error } = await supabase.from('profiles').update(patch).eq('id', userId!);
       if (error) throw error;
     },
@@ -774,5 +779,46 @@ export function useUpdateProfile(userId: string | undefined) {
     },
     onError: (_e, _v, ctx) => qc.setQueryData(key, ctx?.previous),
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+}
+
+// ---------------------------------------------------------------- Intelligente Listen
+export function useSavedFilters() {
+  return useQuery({
+    queryKey: ['saved-filters'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('saved_filters')
+        .select('id, name, filter')
+        .order('created_at');
+      if (error) throw error;
+      return data as SavedFilter[];
+    },
+  });
+}
+
+export function useSaveFilter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name, filter }: { id?: string; name: string; filter: unknown }) => {
+      const query = id
+        ? supabase.from('saved_filters').update({ name, filter }).eq('id', id)
+        : supabase.from('saved_filters').insert({ name, filter });
+      const { data, error } = await query.select('id, name, filter').single();
+      if (error) throw error;
+      return data as SavedFilter;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-filters'] }),
+  });
+}
+
+export function useDeleteFilter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('saved_filters').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-filters'] }),
   });
 }

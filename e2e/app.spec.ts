@@ -353,7 +353,7 @@ test.describe('Schnelleingabe in natürlicher Sprache', () => {
       due_all_day: false,
     });
     expect(new Date(db.tasks[0].due_at as string).getHours()).toBe(14);
-    expect(db.tags.map((t) => t.name)).toEqual(['wichtig']);
+    await expect.poll(() => db.tags.map((t) => t.name)).toEqual(['wichtig']); // Tags folgen nach der Pendenz
 
     await page.goto('/Pendenzenliste/#/demnaechst');
     await expect(page.getByText('Steuererklärung einreichen')).toBeVisible();
@@ -508,5 +508,253 @@ test.describe('Wischgesten', () => {
 
     await page.getByRole('button', { name: 'Rückgängig' }).click();
     await expect(page.getByText('Rechnung', { exact: true })).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------- Phase 8b
+const seed = (over: Record<string, unknown>) => {
+  const now = new Date().toISOString();
+  db.tasks.push({
+    id: `seed-${db.tasks.length + 1}`,
+    list_id: 'id-1',
+    title: 'Seed',
+    notes_md: '',
+    due_at: null,
+    due_all_day: false,
+    duration_min: null,
+    priority: 'medium',
+    status: 'open',
+    assignee_id: null,
+    rrule: null,
+    repeat_mode: 'fixed',
+    repeat_after_days: null,
+    focus_date: null,
+    completed_at: null,
+    deleted_at: null,
+    position: 0,
+    created_at: now,
+    updated_at: now,
+    subtasks: [],
+    ...over,
+  });
+};
+
+test.describe('Filter und Intelligente Listen', () => {
+  test('filtern, speichern und wieder öffnen', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.getByLabel('Pendenz schnell erfassen').fill('Zahnarzt');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    seed({ title: 'Wichtige Rechnung', priority: 'high' });
+    seed({ title: 'Blumen giessen', priority: 'low' });
+    await page.goto('/Pendenzenliste/#/alle');
+    await page.reload();
+    await expect(page.getByText('Blumen giessen')).toBeVisible();
+
+    await page.getByRole('button', { name: /Filter & Sortierung/ }).click();
+    await page
+      .getByRole('group', { name: 'Priorität' })
+      .getByRole('button', { name: 'Hoch' })
+      .click();
+    await expect(page.getByText('Wichtige Rechnung')).toBeVisible();
+    await expect(page.getByText('Blumen giessen')).toBeHidden();
+    await expect(page.getByText('Zahnarzt', { exact: true })).toBeHidden();
+
+    await page.getByLabel('Name der Intelligenten Liste').fill('Wichtig');
+    await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(page).toHaveURL(/#\/filter\//);
+    await expect(page.getByRole('heading', { name: /Wichtig/ })).toBeVisible();
+    await expect(page.getByText('Wichtige Rechnung')).toBeVisible();
+    await expect(page.getByText('Blumen giessen')).toBeHidden();
+    expect(db.savedFilters[0]).toMatchObject({ name: 'Wichtig', filter: { priorities: ['high'] } });
+    await expect(page.getByRole('link', { name: /Wichtig/ })).toBeVisible(); // Seitenleiste
+  });
+
+  test('Sortierung nach Titel', async ({ page }) => {
+    seed({ title: 'Zebra' });
+    seed({ title: 'Apfel' });
+    seed({ title: 'Mango' });
+    await page.goto('/Pendenzenliste/#/alle');
+    await page.reload();
+    await page.getByRole('button', { name: /Filter & Sortierung/ }).click();
+    await page.getByLabel('Sortieren nach').selectOption('title');
+    await expect(page.locator('[data-task-id] .truncate').first()).toHaveText('Apfel');
+  });
+});
+
+test.describe('Kanban', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    db.tasks.length = 0;
+    seed({ id: 'k1', title: 'Entwurf schreiben' });
+    seed({ id: 'k2', title: 'Prüfen', status: 'in_progress' });
+    await page.reload();
+    await page.getByRole('link', { name: /Persönlich/ }).click();
+    await page.getByRole('button', { name: /Kanban/ }).click();
+  });
+
+  test('Spalten und Verschieben mit den Pfeilen', async ({ page }) => {
+    await expect(
+      page.getByRole('region', { name: 'Offen (1)' }).getByText('Entwurf schreiben'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'In Arbeit (1)' }).getByText('Prüfen'),
+    ).toBeVisible();
+    await page.getByRole('button', { name: /Entwurf schreiben nach «In Arbeit»/ }).click();
+    await expect.poll(() => db.tasks.find((t) => t.id === 'k1')?.status).toBe('in_progress');
+    await expect(page.getByRole('region', { name: 'In Arbeit (2)' })).toBeVisible();
+    await page.getByRole('button', { name: /Prüfen nach «Wartend»/ }).click();
+    await expect.poll(() => db.tasks.find((t) => t.id === 'k2')?.status).toBe('waiting');
+  });
+
+  test('Ziehen in eine andere Spalte', async ({ page }) => {
+    await page.getByText('Entwurf schreiben').dragTo(page.getByRole('region', { name: /Wartend/ }));
+    await expect.poll(() => db.tasks.find((t) => t.id === 'k1')?.status).toBe('waiting');
+  });
+
+  test('in die Spalte «Erledigt» verschieben erledigt die Pendenz', async ({ page }) => {
+    await page
+      .getByText('Prüfen', { exact: true })
+      .dragTo(page.getByRole('region', { name: /Erledigt/ }));
+    await expect.poll(() => db.tasks.find((t) => t.id === 'k2')?.status).toBe('done');
+    await expect(page.getByText('«Prüfen» erledigt')).toBeVisible();
+  });
+});
+
+test.describe('Kalenderansicht', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => db.tasks.length).toBe(1);
+    db.tasks.length = 0;
+    const today = new Date();
+    seed({
+      id: 'c1',
+      title: 'Zahnarzt',
+      due_at: new Date(today.getFullYear(), today.getMonth(), 15, 14, 30).toISOString(),
+    });
+    seed({
+      id: 'c2',
+      title: 'Wäsche',
+      due_all_day: true,
+      due_at: new Date(today.getFullYear(), today.getMonth(), 16).toISOString(),
+    });
+    await page.reload();
+    await page.getByRole('link', { name: 'Kalender', exact: true }).click();
+  });
+
+  test('zeigt Pendenzen im Monat und wechselt zur Woche', async ({ page }) => {
+    const cell = (day: number) =>
+      page.getByRole('gridcell', { name: new RegExp(`^${day}\\. `) }).first();
+    await expect(cell(15).getByText('Zahnarzt')).toBeVisible();
+    await expect(cell(15).getByText('14:30')).toBeVisible();
+    await expect(cell(16).getByText('Wäsche')).toBeVisible();
+    await page.getByRole('button', { name: 'Woche' }).click();
+    await expect(page.getByRole('gridcell')).toHaveCount(7);
+  });
+
+  test('Feiertage des Kantons werden angezeigt', async ({ page }) => {
+    for (
+      let i = 0;
+      i < 12 && !(await page.getByRole('heading', { name: /^Dezember/ }).isVisible());
+      i++
+    ) {
+      await page.getByRole('button', { name: 'Weiter' }).click();
+    }
+    await expect(page.getByRole('gridcell', { name: /^25\. Dezember, Weihnachten/ })).toBeVisible();
+    await expect(page.getByRole('gridcell', { name: /^26\. Dezember, Stephanstag/ })).toBeVisible(); // SG
+    await page.getByLabel('Kanton für Feiertage').selectOption('CH');
+    await expect.poll(() => db.profile.canton).toBe('CH');
+    await expect(page.getByRole('gridcell', { name: /^26\. Dezember, Stephanstag/ })).toHaveCount(
+      0,
+    );
+    await page.getByLabel('Feiertage anzeigen').uncheck();
+    await expect(page.getByRole('gridcell', { name: /Weihnachten/ })).toHaveCount(0);
+  });
+
+  test('Pendenz auf einen anderen Tag ziehen behält die Uhrzeit', async ({ page }) => {
+    const cell = (day: number) =>
+      page.getByRole('gridcell', { name: new RegExp(`^${day}\\. `) }).first();
+    await cell(15).getByText('Zahnarzt').dragTo(cell(20));
+    await expect
+      .poll(() => new Date(db.tasks.find((t) => t.id === 'c1')!.due_at as string).getDate())
+      .toBe(20);
+    const moved = new Date(db.tasks.find((t) => t.id === 'c1')!.due_at as string);
+    expect([moved.getHours(), moved.getMinutes()]).toEqual([14, 30]);
+  });
+
+  test('Tag auswählen und Pendenz für diesen Tag anlegen', async ({ page }) => {
+    await page
+      .getByRole('gridcell', { name: /^18\. / })
+      .first()
+      .click();
+    await page.getByRole('button', { name: '＋ Pendenz' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByLabel('Fälligkeitsdatum')).toHaveValue(
+      new RegExp(`-${String(new Date().getMonth() + 1).padStart(2, '0')}-18$`),
+    );
+  });
+});
+
+test.describe('Tagesfokus «Meine 3 für heute»', () => {
+  test('höchstens drei Pendenzen, Abschnitt oben in «Heute»', async ({ page }) => {
+    for (const t of ['Eins', 'Zwei', 'Drei', 'Vier']) {
+      await page.getByLabel('Pendenz schnell erfassen').fill(t);
+      await page.keyboard.press('Enter');
+      await expect(page.getByText(t, { exact: true })).toBeVisible();
+    }
+    for (const t of ['Eins', 'Zwei', 'Drei']) {
+      await page.getByRole('button', { name: `${t} in den Tagesfokus setzen` }).click();
+    }
+    await expect(page.getByRole('region', { name: /Meine 3 für heute \(3\/3\)/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Vier in den Tagesfokus setzen' }).click();
+    await expect(page.getByText(/Tagesfokus ist voll/)).toBeVisible();
+    expect(db.tasks.filter((t) => t.focus_date).length).toBe(3);
+
+    await page.getByRole('button', { name: 'Zwei aus dem Tagesfokus entfernen' }).click();
+    await expect(page.getByRole('region', { name: /Meine 3 für heute \(2\/3\)/ })).toBeVisible();
+  });
+});
+
+test('Statistik zeigt Serie und erledigte Pendenzen', async ({ page }) => {
+  await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => db.tasks.length).toBe(1);
+  db.tasks.length = 0;
+  const day = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString();
+  seed({ status: 'done', completed_at: day(0) });
+  seed({ status: 'done', completed_at: day(1) });
+  seed({ status: 'done', completed_at: day(2) });
+  seed({ title: 'Offen & überfällig', due_all_day: true, due_at: day(3) });
+  seed({
+    title: 'Offen',
+    due_all_day: true,
+    due_at: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+  });
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.reload();
+  await page.getByRole('link', { name: 'Statistik' }).click();
+  await expect(page.getByText('3 Tage', { exact: true }).first()).toBeVisible(); // Serie
+  await expect(page.getByText('50 %')).toBeVisible(); // 1 von 2 offenen Pendenzen mit Datum überfällig
+  await expect(page.getByRole('img', { name: /Erledigte Pendenzen pro Woche/ })).toBeVisible();
+});
+
+test.describe('Profil und Darstellung', () => {
+  test('Dunkelmodus umschalten und Namen ändern', async ({ page }) => {
+    await page.goto('/Pendenzenliste/#/einstellungen');
+    await page.getByRole('button', { name: 'Dunkel' }).click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    expect(db.profile.theme).toBe('dark');
+    await page.getByRole('button', { name: 'Hell', exact: true }).click();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+
+    const name = page.getByLabel('Name', { exact: true });
+    await name.fill('Anna Muster');
+    await name.blur();
+    await expect.poll(() => db.profile.name).toBe('Anna Muster');
   });
 });

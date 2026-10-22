@@ -1,13 +1,20 @@
 import { useState } from 'react';
+import { useMyProfile, useUpdateProfile } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { PushSettings } from './PushSettings';
+import { storedTheme, type ThemeChoice } from './ThemeProvider';
 
 export function SettingsPage() {
   const { session } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const user = session?.user;
-  const name = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? '';
+  const { data: profile } = useMyProfile(user?.id);
+  const updateProfile = useUpdateProfile(user?.id);
+  const name =
+    profile?.name || ((user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? '');
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const theme: ThemeChoice = profile?.theme ?? storedTheme();
   const avatar = user?.user_metadata?.avatar_url as string | undefined;
 
   async function deleteAccount() {
@@ -41,6 +48,47 @@ export function SettingsPage() {
           <p className="text-sm text-slate-500">{user?.email}</p>
         </div>
       </div>
+      <section
+        aria-label="Profil und Darstellung"
+        className="mt-4 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800"
+      >
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Name
+          <input
+            value={draftName ?? name}
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={() => {
+              const next = (draftName ?? '').trim();
+              if (next && next !== profile?.name) updateProfile.mutate({ name: next });
+              setDraftName(null);
+            }}
+            maxLength={80}
+            className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900"
+          />
+        </label>
+        <p className="mt-1 text-xs text-slate-500">So sehen dich andere in geteilten Listen.</p>
+        <div className="mt-4" role="group" aria-label="Darstellung">
+          <p className="mb-2 text-sm font-medium">Darstellung</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                ['system', 'System'],
+                ['light', 'Hell'],
+                ['dark', 'Dunkel'],
+              ] as [ThemeChoice, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={theme === value}
+                onClick={() => updateProfile.mutate({ theme: value })}
+                className={`h-11 rounded-xl text-sm font-medium ${theme === value ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
       <PushSettings />
       <a
         href="#/kalender"

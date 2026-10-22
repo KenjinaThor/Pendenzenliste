@@ -118,3 +118,16 @@ start_time desc limit 5;` die letzten Läufe. Der Zeitplan räumt täglich auch 
    Tags und Erinnerungen übernommen); «Rückgängig» macht beides rückgängig. Verpasste Termine werden übersprungen.
 4. **Tastenkürzel am PC:** `N` neue Pendenz, `/` Suche, `J`/`K` auswählen, `E` erledigen, `Enter` öffnen, `?` Übersicht.
 5. **Wischgesten auf dem iPhone:** Zeile nach rechts = erledigt, nach links = «Morgen» (verschieben) oder löschen.
+
+## Komfort-Funktionen, Teil 2 (Phase 8b) – keine Datenbank-Änderung nötig
+
+- **Filtern und Sortieren** («Alle» und jede Liste): nach Priorität, Status, Person, Tags und Listen; Sortierung nach
+  Fälligkeit, Priorität, Titel oder Erstelldatum. Ein Filter lässt sich als **Intelligente Liste** speichern (erscheint in
+  der Seitenleiste).
+- **Kanban** pro Liste (Umschalter «Liste / Kanban»): Spalten Offen, In Arbeit, Wartend, Erledigt. Karten ziehen (PC) oder
+  mit ◀ ▶ verschieben (Touch/Tastatur).
+- **Kalender** (Monat/Woche): Pendenzen auf einen anderen Tag ziehen (Uhrzeit bleibt), Tag antippen und Pendenz anlegen,
+  Schweizer Feiertage nach Kanton (Angaben ohne Gewähr).
+- **Meine 3 für heute:** mit ☆ bis zu drei Pendenzen als Tagesfokus markieren; sie stehen oben in «Heute».
+- **Statistik:** erledigte Pendenzen pro Woche, Überfälligkeitsquote, Serie.
+- **Einstellungen:** Name ändern, Darstellung Hell/Dunkel/System.

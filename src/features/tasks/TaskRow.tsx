@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useSnackbar } from '../../components/Snackbar';
-import { useCompleteTask, useLists, useSetDone, useTrashTask, useUpdateTask } from '../../lib/api';
-import { addDays, formatDay, formatDue } from '../../lib/dates';
+import {
+  useCompleteTask,
+  useLists,
+  useSetDone,
+  useTasks,
+  useTrashTask,
+  useUpdateTask,
+} from '../../lib/api';
+import { addDays, formatDay, formatDue, toDateInput } from '../../lib/dates';
 import { describeRepeat, isRecurring } from '../../lib/recurrence';
 import type { Task } from '../../lib/types';
-import { isDone, isOverdue } from '../../lib/views';
+import { MAX_FOCUS, focusTasks, isDone, isOverdue } from '../../lib/views';
 import { usePermissions } from '../sharing/usePermissions';
 import { useEditor } from './EditorContext';
 import { useSelection } from './SelectionContext';
@@ -24,6 +31,7 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
   const perms = usePermissions();
   const snackbar = useSnackbar();
   const { selectedId } = useSelection();
+  const { data: allTasks = [] } = useTasks();
   const [checking, setChecking] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -35,6 +43,17 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
   const checked = done || checking;
   const subtasksDone = task.subtasks.filter((s) => s.done).length;
   const editable = perms.canEdit(task.list_id);
+  const todayKey = toDateInput(now);
+  const focused = task.focus_date === todayKey;
+
+  /** Tagesfokus «Meine 3 für heute»: höchstens drei Pendenzen */
+  function toggleFocus() {
+    if (!focused && focusTasks(allTasks, todayKey).length >= MAX_FOCUS) {
+      snackbar({ text: `Dein Tagesfokus ist voll (höchstens ${MAX_FOCUS} Pendenzen).` });
+      return;
+    }
+    update.mutate({ id: task.id, patch: { focus_date: focused ? null : todayKey } });
+  }
 
   function toggle() {
     if (done) {
@@ -265,6 +284,20 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
             )}
           </span>
         </button>
+        {editable && !done && (
+          <button
+            onClick={toggleFocus}
+            aria-pressed={focused}
+            aria-label={
+              focused
+                ? `${task.title} aus dem Tagesfokus entfernen`
+                : `${task.title} in den Tagesfokus setzen`
+            }
+            className={`h-8 w-8 shrink-0 rounded-full text-lg ${focused ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}
+          >
+            {focused ? '★' : '☆'}
+          </button>
+        )}
       </div>
     </li>
   );

@@ -20,6 +20,7 @@ export async function mockSupabase(page: Page) {
     activity: Row[];
     rpcCalls: { name: string; args: unknown }[];
     reminders: Row[];
+    savedFilters: Row[];
     tags: Row[];
     taskTags: { task_id: string; tag_id: string }[];
     pushSubscriptions: Row[];
@@ -36,6 +37,7 @@ export async function mockSupabase(page: Page) {
     activity: [],
     rpcCalls: [],
     reminders: [],
+    savedFilters: [],
     tags: [],
     taskTags: [],
     pushSubscriptions: [],
@@ -46,6 +48,8 @@ export async function mockSupabase(page: Page) {
       email: 'a@x.ch',
       timezone: 'Europe/Zurich',
       daily_digest_time: null,
+      canton: 'SG',
+      theme: 'system',
     },
   };
   /** Aufgaben wie PostgREST ausliefern (Tags als verschachtelte task_tags) */
@@ -151,6 +155,23 @@ export async function mockSupabase(page: Page) {
         profiles: me,
       }));
       return json(route, [...own, ...db.extraMembers]);
+    }
+    if (table === 'saved_filters') {
+      if (req.method() === 'GET') return json(route, db.savedFilters);
+      if (req.method() === 'POST') {
+        const row = { id: newId(), ...body };
+        db.savedFilters.push(row);
+        return json(route, single ? row : [row], 201);
+      }
+      if (req.method() === 'PATCH') {
+        const row = db.savedFilters.find((f) => f.id === eq)!;
+        Object.assign(row, body);
+        return json(route, single ? row : [row]);
+      }
+      if (req.method() === 'DELETE') {
+        db.savedFilters = db.savedFilters.filter((f) => f.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
     }
     if (table === 'tags') {
       if (req.method() === 'GET') {
@@ -316,6 +337,7 @@ export async function mockSupabase(page: Page) {
           rrule: null,
           repeat_mode: 'fixed',
           repeat_after_days: null,
+          focus_date: null,
           completed_at: null,
           deleted_at: null,
           position: 0,

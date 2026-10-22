@@ -1,11 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { ThemeProvider } from '../features/settings/ThemeProvider';
+import { StatsPage } from '../features/stats/StatsPage';
 import { AuthProvider, useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AcceptInvitePage } from '../features/sharing/AcceptInvitePage';
 import { CalendarPage } from '../features/calendar/CalendarPage';
 import { TaskDeepLink } from '../features/tasks/TaskDeepLink';
+import { CalendarViewPage } from '../features/calendarview/CalendarViewPage';
+import { SmartListPage } from '../features/filters/SmartListPage';
 import { ListPage } from '../features/lists/ListPage';
 import { ListsPage } from '../features/lists/ListsPage';
 import { SearchPage } from '../features/search/SearchPage';
@@ -29,6 +33,9 @@ function Authenticated() {
           <Route key={v.key} path={`/${v.key}`} element={<ViewPage view={v.key} />} />
         ))}
         <Route path="/liste/:id" element={<ListPage />} />
+        <Route path="/filter/:id" element={<SmartListPage />} />
+        <Route path="/kalenderansicht" element={<CalendarViewPage />} />
+        <Route path="/statistik" element={<StatsPage />} />
         <Route path="/listen" element={<ListsPage />} />
         <Route path="/suche" element={<SearchPage />} />
         <Route path="/papierkorb" element={<TrashPage />} />
@@ -62,7 +69,9 @@ export function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <Gate />
+        <ThemeProvider>
+          <Gate />
+        </ThemeProvider>
       </QueryClientProvider>
     </AuthProvider>
   );

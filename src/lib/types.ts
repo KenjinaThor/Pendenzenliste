@@ -23,6 +23,8 @@ export interface Task {
   rrule: string | null;
   repeat_mode: 'fixed' | 'after_completion';
   repeat_after_days: number | null;
+  /** Tag (YYYY-MM-DD), an dem die Pendenz im Tagesfokus «Meine 3» steht */
+  focus_date: string | null;
   completed_at: string | null;
   deleted_at: string | null;
   position: number;
@@ -134,5 +136,13 @@ export interface MyProfile {
   id: string;
   name: string;
   timezone: string;
+  canton: string;
+  theme: 'system' | 'light' | 'dark';
   daily_digest_time: string | null;
+}
+
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter: unknown;
 }

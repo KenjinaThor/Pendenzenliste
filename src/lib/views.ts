@@ -140,3 +140,10 @@ export function searchTasks(tasks: Task[], query: string): Task[] {
     )
     .sort(compareTasks);
 }
+
+export const MAX_FOCUS = 3;
+
+/** Tagesfokus «Meine 3 für heute»: offene Pendenzen, die für den heutigen Tag markiert sind. */
+export function focusTasks(tasks: Task[], todayKey: string): Task[] {
+  return tasks.filter((t) => t.focus_date === todayKey && !isDone(t)).sort(compareTasks);
+}

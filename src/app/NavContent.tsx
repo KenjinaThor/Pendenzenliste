@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useLists, useNotifications, useTasks } from '../lib/api';
+import { useLists, useNotifications, useSavedFilters, useTasks } from '../lib/api';
 import { usePermissions } from '../features/sharing/usePermissions';
 import { countFor, isDone, VIEWS } from '../lib/views';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -12,6 +12,7 @@ const link = ({ isActive }: { isActive: boolean }) =>
 export function NavContent() {
   const { data: tasks = [] } = useTasks();
   const { data: lists = [] } = useLists();
+  const { data: smartLists = [] } = useSavedFilters();
   const { session } = useAuth();
   const { openList } = useEditor();
   const perms = usePermissions();
@@ -52,6 +53,19 @@ export function NavContent() {
           </span>
         </NavLink>
       ))}
+      {smartLists.length > 0 && (
+        <>
+          <h2 className="mt-4 mb-1 px-3 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            Intelligente Listen
+          </h2>
+          {smartLists.map((s) => (
+            <NavLink key={s.id} to={`/filter/${s.id}`} className={link}>
+              <span aria-hidden>🔎</span>
+              <span className="flex-1 truncate">{s.name}</span>
+            </NavLink>
+          ))}
+        </>
+      )}
       <button
         onClick={() => openList(null)}
         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-indigo-700 dark:text-indigo-300"
@@ -59,6 +73,12 @@ export function NavContent() {
         <span aria-hidden>＋</span> Neue Liste
       </button>
       <div className="mt-4 border-t border-slate-200 pt-2 dark:border-slate-700">
+        <NavLink to="/kalenderansicht" className={link}>
+          <span aria-hidden>📅</span> Kalender
+        </NavLink>
+        <NavLink to="/statistik" className={link}>
+          <span aria-hidden>📊</span> Statistik
+        </NavLink>
         <NavLink to="/mitteilungen" className={link}>
           <span aria-hidden>🔔</span>
           <span className="flex-1">Mitteilungen</span>

@@ -21,6 +21,7 @@ function task(p: Partial<Task>): Task {
     rrule: null,
     repeat_mode: 'fixed',
     repeat_after_days: null,
+    focus_date: null,
     tags: [],
     completed_at: null,
     deleted_at: null,
