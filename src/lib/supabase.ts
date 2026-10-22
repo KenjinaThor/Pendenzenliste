@@ -6,6 +6,9 @@ const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.
 /** true, sobald gültige öffentliche Supabase-Werte gesetzt sind (siehe .env.example). */
 export const isSupabaseConfigured = Boolean(url && /^https?:\/\//.test(url) && anonKey);
 
+/** Öffentlicher Schlüssel (Publishable/anon Key). */
+export const supabaseKey = anonKey ?? '';
+
 // Der anon-Key ist öffentlich; geschützt sind die Daten durch Row Level Security.
 // PKCE: Der Login-Code kommt als ?code=… zurück und kollidiert so nicht mit dem HashRouter.
 export const supabase = createClient(

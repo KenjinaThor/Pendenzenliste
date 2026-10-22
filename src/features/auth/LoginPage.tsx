@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { appUrl, supabase } from '../../lib/supabase';
+import { appUrl, supabase, supabaseKey } from '../../lib/supabase';
 
 type Step = 'start' | 'code';
 
@@ -12,11 +12,19 @@ export function LoginPage() {
 
   async function signInWithGoogle() {
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    // Die Weiterleitung selbst ausführen, damit der Schlüssel als apikey-Parameter mitgeht
+    // (Supabase verlangt ihn bei Publishable Keys auch für /auth/v1/authorize).
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: appUrl },
+      options: { redirectTo: appUrl, skipBrowserRedirect: true },
     });
-    if (error) setError(error.message);
+    if (error || !data.url) {
+      setError(error?.message ?? 'Anmeldung konnte nicht gestartet werden.');
+      return;
+    }
+    const target = new URL(data.url);
+    target.searchParams.set('apikey', supabaseKey);
+    window.location.assign(target.toString());
   }
 
   async function sendCode(e: FormEvent) {
