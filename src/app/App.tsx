@@ -1,41 +1,37 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
-import { InstallHint } from '../features/onboarding/InstallHint';
+import { ListPage } from '../features/lists/ListPage';
+import { ListsPage } from '../features/lists/ListsPage';
+import { SearchPage } from '../features/search/SearchPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { TrashPage } from '../features/trash/TrashPage';
+import { ViewPage } from '../features/views/ViewPage';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { VIEWS } from '../lib/views';
+import { AppShell } from './AppShell';
 
-function Home() {
-  return (
-    <div className="mx-auto max-w-xl p-4">
-      <h2 className="text-xl font-semibold">Willkommen!</h2>
-      <p className="mt-2 text-slate-600 dark:text-slate-300">
-        Du bist angemeldet. Die Pendenzenliste folgt in der nächsten Phase.
-      </p>
-    </div>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true } },
+});
 
-function Shell() {
+function Authenticated() {
   return (
-    <div className="flex h-full flex-col pt-[var(--safe-top)]">
-      <InstallHint />
-      <div className="flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/einstellungen" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-      <nav className="flex border-t border-slate-200 bg-white pb-[var(--safe-bottom)] dark:border-slate-700 dark:bg-slate-800">
-        <a href="#/" className="flex-1 py-3 text-center text-sm font-medium">
-          Start
-        </a>
-        <a href="#/einstellungen" className="flex-1 py-3 text-center text-sm font-medium">
-          Einstellungen
-        </a>
-      </nav>
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route path="/" element={<Navigate to="/heute" replace />} />
+        {VIEWS.map((v) => (
+          <Route key={v.key} path={`/${v.key}`} element={<ViewPage view={v.key} />} />
+        ))}
+        <Route path="/liste/:id" element={<ListPage />} />
+        <Route path="/listen" element={<ListsPage />} />
+        <Route path="/suche" element={<SearchPage />} />
+        <Route path="/papierkorb" element={<TrashPage />} />
+        <Route path="/einstellungen" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/heute" replace />} />
+      </Route>
+    </Routes>
   );
 }
 
@@ -51,13 +47,15 @@ function Gate() {
     );
   }
   if (loading) return <main className="flex h-full items-center justify-center">Lade …</main>;
-  return session ? <Shell /> : <LoginPage />;
+  return session ? <Authenticated /> : <LoginPage />;
 }
 
 export function App() {
   return (
     <AuthProvider>
-      <Gate />
+      <QueryClientProvider client={queryClient}>
+        <Gate />
+      </QueryClientProvider>
     </AuthProvider>
   );
 }

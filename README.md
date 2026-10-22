@@ -10,6 +10,7 @@ Pendenzenliste als Progressive Web App (iPhone und PC), kostenlos betrieben übe
 npm install
 npm run dev      # lokal starten
 npm run lint && npm test && npm run build
+npm run test:e2e # Playwright-Tests (Supabase wird gemockt)
 npm run icons    # PNG-Icons aus public/icon.svg neu erzeugen
 ```
 
