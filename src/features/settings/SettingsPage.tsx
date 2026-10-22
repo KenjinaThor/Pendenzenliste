@@ -40,6 +40,18 @@ export function SettingsPage() {
           <p className="text-sm text-slate-500">{user?.email}</p>
         </div>
       </div>
+      <a
+        href="#/kalender"
+        className="mt-4 flex h-12 items-center justify-center rounded-xl bg-indigo-100 font-medium text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100"
+      >
+        📆 Kalender verbinden
+      </a>
+      <a
+        href="#/papierkorb"
+        className="mt-3 flex h-12 items-center justify-center rounded-xl bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"
+      >
+        🗑️ Papierkorb
+      </a>
       <button
         onClick={() => supabase.auth.signOut()}
         className="mt-4 h-12 w-full rounded-xl bg-slate-200 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"

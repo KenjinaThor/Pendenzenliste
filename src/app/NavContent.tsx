@@ -52,6 +52,9 @@ export function NavContent() {
         <span aria-hidden>＋</span> Neue Liste
       </button>
       <div className="mt-4 border-t border-slate-200 pt-2 dark:border-slate-700">
+        <NavLink to="/kalender" className={link}>
+          <span aria-hidden>📆</span> Kalender verbinden
+        </NavLink>
         <NavLink to="/papierkorb" className={link}>
           <span aria-hidden>🗑️</span> Papierkorb
         </NavLink>

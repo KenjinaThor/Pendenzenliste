@@ -40,3 +40,20 @@ Die vollständige Einrichtungsanleitung (Supabase, Google-Login, Push) folgt in 
 8. Deployment neu starten (Actions → _Deploy auf GitHub Pages_ → Run workflow).
 
 Tests der Zugriffsregeln: `supabase/tests/rls_smoketest.sql` (gegen eine lokale Postgres-Instanz mit Supabase-Stubs).
+
+## Kalender-Abo (Phase 5)
+
+Die App liefert einen persönlichen ICS-Feed (Edge Function `calendar`). Einrichtung:
+
+1. **Migration:** im Supabase **SQL Editor** den Inhalt von
+   `supabase/migrations/20261022000002_calendar_token_visible.sql` ausführen.
+2. **Zugriffs-Token:** Supabase → Konto-Symbol unten links → **Account preferences → Access Tokens →
+   Generate new token** (Name z. B. `github-deploy`). Den Token als GitHub-Secret `SUPABASE_ACCESS_TOKEN`
+   speichern (Repo → Settings → Secrets and variables → Actions).
+3. **Function veröffentlichen:** Actions → _Edge Functions deployen_ → **Run workflow**. Danach wird sie bei jeder
+   Änderung automatisch veröffentlicht.
+4. In der App: **Einstellungen → Kalender verbinden → Kalender-Link erzeugen**.
+
+Der Feed enthält alle offenen Pendenzen mit Fälligkeit aus den gewählten Listen (ganztägig oder mit Uhrzeit und
+Dauer, Notizen, Unteraufgaben, Rück-Link und Erinnerung). Auf demselben Link funktionieren auch Google Kalender und
+Outlook. Optional kann in Supabase (Edge Functions → Secrets) `APP_URL` gesetzt werden, falls sich die App-Adresse ändert.

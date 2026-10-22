@@ -7,7 +7,11 @@ export const ANON_KEY = 'sb_publishable_mock';
 type Row = Record<string, unknown> & { id: string };
 
 export async function mockSupabase(page: Page) {
-  const db: { lists: Row[]; tasks: (Row & { subtasks: Row[] })[] } = { lists: [], tasks: [] };
+  const db: {
+    lists: Row[];
+    tasks: (Row & { subtasks: Row[] })[];
+    calendar: Row | null;
+  } = { lists: [], tasks: [], calendar: null };
   let counter = 0;
   const newId = () => `id-${++counter}`;
   const cors = {
@@ -33,7 +37,21 @@ export async function mockSupabase(page: Page) {
     const body = req.postData() ? JSON.parse(req.postData()!) : null;
     const now = new Date().toISOString();
 
+    if (url.pathname.endsWith('/rpc/rotate_calendar_token')) {
+      const token = (++counter).toString(16).padStart(64, 'c');
+      db.calendar = { id: 'user-1', token, list_ids: db.calendar?.list_ids ?? null };
+      return json(route, token);
+    }
     if (url.pathname.includes('/rpc/')) return json(route, 0);
+
+    if (table === 'calendar_tokens') {
+      if (req.method() === 'GET')
+        return json(route, single || !db.calendar ? db.calendar : [db.calendar]);
+      if (req.method() === 'PATCH' && db.calendar) {
+        Object.assign(db.calendar, body);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
 
     if (table === 'lists') {
       if (req.method() === 'GET') return json(route, db.lists);

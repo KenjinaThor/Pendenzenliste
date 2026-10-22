@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
+import { CalendarPage } from '../features/calendar/CalendarPage';
+import { TaskDeepLink } from '../features/tasks/TaskDeepLink';
 import { ListPage } from '../features/lists/ListPage';
 import { ListsPage } from '../features/lists/ListsPage';
 import { SearchPage } from '../features/search/SearchPage';
@@ -28,6 +30,8 @@ function Authenticated() {
         <Route path="/listen" element={<ListsPage />} />
         <Route path="/suche" element={<SearchPage />} />
         <Route path="/papierkorb" element={<TrashPage />} />
+        <Route path="/kalender" element={<CalendarPage />} />
+        <Route path="/pendenz/:id" element={<TaskDeepLink />} />
         <Route path="/einstellungen" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/heute" replace />} />
       </Route>

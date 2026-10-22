@@ -12,6 +12,7 @@ import {
   useUpdateTask,
 } from '../../lib/api';
 import { addDays, buildDue, nextMonday, toDateInput, toTimeInput } from '../../lib/dates';
+import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
 import type { NewTaskDefaults } from './EditorContext';
 
@@ -41,9 +42,9 @@ export function TaskEditor({
   const due = existing?.due_at ? new Date(existing.due_at) : null;
   const [title, setTitle] = useState(existing?.title ?? '');
   const [notes, setNotes] = useState(existing?.notes_md ?? '');
-  const [listId, setListId] = useState(
-    existing?.list_id ?? defaults?.list_id ?? lists[0]?.id ?? '',
-  );
+  // Auswahl der Person; solange nichts gewählt ist, gilt die erste Liste (auch wenn sie erst später lädt)
+  const [chosenListId, setListId] = useState(existing?.list_id ?? defaults?.list_id ?? '');
+  const listId = chosenListId || lists[0]?.id || '';
   const [date, setDate] = useState(due ? toDateInput(due) : (defaults?.date ?? ''));
   const [time, setTime] = useState(due && !existing?.due_all_day ? toTimeInput(due) : '');
   const [duration, setDuration] = useState<number | ''>(existing?.duration_min ?? '');
@@ -391,6 +392,20 @@ export function TaskEditor({
         >
           Speichern
         </button>
+        {existing?.due_at && (
+          <button
+            type="button"
+            onClick={() =>
+              downloadTaskIcs(
+                existing,
+                lists.find((l) => l.id === existing.list_id),
+              )
+            }
+            className="h-12 rounded-xl bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"
+          >
+            📅 Zum Kalender hinzufügen
+          </button>
+        )}
         {existing && (
           <button
             type="button"

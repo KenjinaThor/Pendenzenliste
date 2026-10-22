@@ -263,3 +263,60 @@ export function useDeleteSubtask() {
     onSettled: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   });
 }
+
+// ---------------------------------------------------------------- Kalender-Abo
+export interface CalendarFeed {
+  token: string | null;
+  /** null = alle Listen */
+  list_ids: string[] | null;
+}
+
+export function useCalendarFeed() {
+  return useQuery({
+    queryKey: ['calendar-feed'],
+    queryFn: async (): Promise<CalendarFeed | null> => {
+      const { data, error } = await supabase
+        .from('calendar_tokens')
+        .select('token, list_ids')
+        .maybeSingle();
+      if (error) throw error;
+      return data as CalendarFeed | null;
+    },
+  });
+}
+
+/** Erzeugt den Token (erstmals) bzw. ersetzt ihn; die alte URL wird damit ungültig. */
+export function useRotateCalendarToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('rotate_calendar_token');
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-feed'] }),
+  });
+}
+
+export function useSaveCalendarLists() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, listIds }: { userId: string; listIds: string[] | null }) => {
+      const { error } = await supabase
+        .from('calendar_tokens')
+        .update({ list_ids: listIds })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onMutate: async ({ listIds }) => {
+      const previous = qc.getQueryData<CalendarFeed | null>(['calendar-feed']);
+      // erst Cache ändern (sofortige Rückmeldung), dann laufende Abfragen mit altem Stand abbrechen
+      qc.setQueryData<CalendarFeed | null>(['calendar-feed'], (old) =>
+        old ? { ...old, list_ids: listIds } : old,
+      );
+      await qc.cancelQueries({ queryKey: ['calendar-feed'] });
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(['calendar-feed'], ctx?.previous),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['calendar-feed'] }),
+  });
+}

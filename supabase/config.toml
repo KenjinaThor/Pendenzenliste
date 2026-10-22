@@ -1,0 +1,6 @@
+# Konfiguration für die Supabase-CLI (Deployment der Edge Functions)
+project_id = "pendenzen"
+
+[functions.calendar]
+# Kalender-Apps können keinen Login mitschicken; der Zugriff läuft über den geheimen Token in der URL
+verify_jwt = false
