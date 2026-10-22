@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { WEEKDAYS, describeRepeat, weekdayShort, type Weekday } from '../../lib/recurrence';
 import { fieldsFromForm, type RepeatForm } from '../../lib/repeatForm';
 
@@ -8,6 +9,37 @@ const UNIT: Record<string, string> = {
   MONTHLY: 'Monate',
   YEARLY: 'Jahre',
 };
+
+function NumberField({
+  value,
+  max,
+  label,
+  onCommit,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  onCommit: (n: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      min={1}
+      max={max}
+      inputMode="numeric"
+      aria-label={label}
+      value={text ?? value}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== '' && n >= 1) onCommit(Math.min(max, Math.floor(n)));
+      }}
+      onBlur={() => setText(null)}
+      className={`${field} w-20 text-center`}
+    />
+  );
+}
 
 export function RepeatSection({
   value,
@@ -50,17 +82,11 @@ export function RepeatSection({
         <div className="mt-2 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm">
             Alle
-            <input
-              type="number"
-              min={1}
-              max={99}
-              inputMode="numeric"
-              aria-label="Wiederholungsabstand"
+            <NumberField
+              label="Wiederholungsabstand"
               value={value.interval}
-              onChange={(e) =>
-                onChange({ ...value, interval: Math.max(1, Number(e.target.value) || 1) })
-              }
-              className={`${field} w-20 text-center`}
+              max={99}
+              onCommit={(n) => onChange({ ...value, interval: n })}
             />
             {UNIT[value.kind]}
           </div>
@@ -83,17 +109,11 @@ export function RepeatSection({
       )}
       {value.kind === 'after' && !disabled && (
         <div className="mt-2 flex items-center gap-2 text-sm">
-          <input
-            type="number"
-            min={1}
-            max={365}
-            inputMode="numeric"
-            aria-label="Tage nach Erledigung"
+          <NumberField
+            label="Tage nach Erledigung"
             value={value.afterDays}
-            onChange={(e) =>
-              onChange({ ...value, afterDays: Math.max(1, Number(e.target.value) || 1) })
-            }
-            className={`${field} w-20 text-center`}
+            max={365}
+            onCommit={(n) => onChange({ ...value, afterDays: n })}
           />
           Tage nach Erledigung
         </div>
