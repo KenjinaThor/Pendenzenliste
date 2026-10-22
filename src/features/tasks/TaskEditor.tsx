@@ -4,6 +4,7 @@ import { useSnackbar } from '../../components/Snackbar';
 import {
   useAddReminders,
   useAddSubtasks,
+  useSetTaskTags,
   useCreateTask,
   useDeleteSubtask,
   useLists,
@@ -14,12 +15,15 @@ import {
   type ReminderInput,
 } from '../../lib/api';
 import { addDays, buildDue, nextMonday, toDateInput, toTimeInput } from '../../lib/dates';
+import { NO_REPEAT, fieldsFromForm, formFromTask, type RepeatForm } from '../../lib/repeatForm';
 import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
 import { usePermissions } from '../sharing/usePermissions';
 import { ActivitySection } from './ActivitySection';
 import { CommentsSection } from './CommentsSection';
 import { RemindersSection } from './RemindersSection';
+import { RepeatSection } from './RepeatSection';
+import { TagsSection } from './TagsSection';
 import type { NewTaskDefaults } from './EditorContext';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
@@ -42,6 +46,7 @@ export function TaskEditor({
   const trash = useTrashTask();
   const addSubtasks = useAddSubtasks();
   const addReminders = useAddReminders();
+  const setTaskTags = useSetTaskTags();
   const [draftReminders, setDraftReminders] = useState<ReminderInput[]>([]);
   const updateSubtask = useUpdateSubtask();
   const deleteSubtask = useDeleteSubtask();
@@ -67,6 +72,8 @@ export function TaskEditor({
   const [customDuration, setCustomDuration] = useState(
     existing?.duration_min != null && !DURATIONS.includes(existing.duration_min),
   );
+  const [repeat, setRepeat] = useState<RepeatForm>(() => formFromTask(existing) ?? NO_REPEAT);
+  const [tagNames, setTagNames] = useState<string[]>(existing?.tags.map((t) => t.name) ?? []);
   const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium');
   const [status, setStatus] = useState<Status>(existing?.status ?? 'open');
   const [draftSubtasks, setDraftSubtasks] = useState<string[]>([]);
@@ -83,6 +90,20 @@ export function TaskEditor({
   const today = new Date();
   const setQuickDate = (d: Date | null) => setDate(d ? toDateInput(d) : '');
 
+  const knownTags = [...new Set(tasks.flatMap((t) => t.tags.map((x) => x.name)))].sort((a, b) =>
+    a.localeCompare(b, 'de-CH'),
+  );
+  const tagsChanged =
+    !existing ||
+    tagNames.length !== existing.tags.length ||
+    tagNames.some(
+      (n) =>
+        !existing.tags.some(
+          (t) => t.name.toLocaleLowerCase('de-CH') === n.toLocaleLowerCase('de-CH'),
+        ),
+    ) ||
+    listId !== existing.list_id;
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || !listId) return;
@@ -97,6 +118,7 @@ export function TaskEditor({
       priority,
       status,
       assignee_id: effectiveAssignee || null,
+      ...fieldsFromForm(repeat, date ? new Date(`${date}T00:00:00`) : null),
     };
     try {
       if (existing) {
@@ -108,8 +130,12 @@ export function TaskEditor({
               status === 'done' ? (existing.completed_at ?? new Date().toISOString()) : null,
           },
         });
+        if (tagsChanged)
+          await setTaskTags.mutateAsync({ taskId: existing.id, listId, names: tagNames });
       } else {
         const task = await create.mutateAsync(values);
+        if (tagNames.length)
+          await setTaskTags.mutateAsync({ taskId: task.id, listId, names: tagNames });
         if (draftReminders.length)
           await addReminders.mutateAsync({ taskId: task.id, items: draftReminders });
         const pending = newSubtask.trim() ? [...draftSubtasks, newSubtask.trim()] : draftSubtasks;
@@ -314,6 +340,12 @@ export function TaskEditor({
             )}
           </div>
 
+          <RepeatSection
+            value={repeat}
+            onChange={setRepeat}
+            dueDate={date ? new Date(`${date}T00:00:00`) : null}
+          />
+
           <RemindersSection
             taskId={existing?.id ?? null}
             hasDue={Boolean(date)}
@@ -353,6 +385,8 @@ export function TaskEditor({
               ))}
             </select>
           </label>
+
+          <TagsSection names={tagNames} onChange={setTagNames} suggestions={knownTags} />
 
           <div>
             <p className="mb-2 text-sm font-medium">

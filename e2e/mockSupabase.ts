@@ -20,6 +20,8 @@ export async function mockSupabase(page: Page) {
     activity: Row[];
     rpcCalls: { name: string; args: unknown }[];
     reminders: Row[];
+    tags: Row[];
+    taskTags: { task_id: string; tag_id: string }[];
     pushSubscriptions: Row[];
     profile: Row;
   } = {
@@ -34,6 +36,8 @@ export async function mockSupabase(page: Page) {
     activity: [],
     rpcCalls: [],
     reminders: [],
+    tags: [],
+    taskTags: [],
     pushSubscriptions: [],
     profile: {
       id: 'user-1',
@@ -44,6 +48,13 @@ export async function mockSupabase(page: Page) {
       daily_digest_time: null,
     },
   };
+  /** Aufgaben wie PostgREST ausliefern (Tags als verschachtelte task_tags) */
+  const withTags = (t: Row & { subtasks: Row[] }) => ({
+    ...t,
+    task_tags: db.taskTags
+      .filter((x) => x.task_id === t.id)
+      .map((x) => ({ tags: db.tags.find((g) => g.id === x.tag_id) ?? null })),
+  });
   const me = { id: 'user-1', name: 'Anna', avatar_url: null, email: 'a@x.ch' };
   let counter = 0;
   const newId = () => `id-${++counter}`;
@@ -95,6 +106,39 @@ export async function mockSupabase(page: Page) {
           route,
           'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
         );
+      if (name === 'complete_recurring_task') {
+        const task = db.tasks.find((t) => t.id === body.p_task)!;
+        const clone = {
+          ...task,
+          id: newId(),
+          due_at: body.p_next_due,
+          status: 'open',
+          completed_at: null,
+          subtasks: task.subtasks.map((s) => ({ ...s, id: newId(), done: false })),
+        };
+        db.tasks.push(clone);
+        Object.assign(task, {
+          status: 'done',
+          rrule: null,
+          repeat_after_days: null,
+          completed_at: now,
+        });
+        return json(route, clone.id);
+      }
+      if (name === 'undo_recurring_completion') {
+        db.tasks = db.tasks.filter((t) => t.id !== body.p_clone);
+        Object.assign(
+          db.tasks.find((t) => t.id === body.p_task)!,
+          {
+            status: 'open',
+            completed_at: null,
+            rrule: body.p_rrule,
+            repeat_mode: body.p_mode,
+            repeat_after_days: body.p_after,
+          },
+        );
+        return json(route, null);
+      }
       if (name === 'accept_invite') return json(route, db.lists[0]?.id ?? 'id-1');
       return json(route, 0);
     }
@@ -107,6 +151,37 @@ export async function mockSupabase(page: Page) {
         profiles: me,
       }));
       return json(route, [...own, ...db.extraMembers]);
+    }
+    if (table === 'tags') {
+      if (req.method() === 'GET') {
+        const list = url.searchParams.get('list_id')?.replace('eq.', '');
+        return json(
+          route,
+          db.tags.filter((t) => t.list_id === list),
+        );
+      }
+      if (req.method() === 'POST') {
+        const rows = (body as Row[]).map((r) => ({ id: newId(), color: '#94a3b8', ...r }));
+        db.tags.push(...rows);
+        return json(route, rows, 201);
+      }
+    }
+    if (table === 'task_tags') {
+      const task = url.searchParams.get('task_id')?.replace('eq.', '');
+      if (req.method() === 'GET')
+        return json(
+          route,
+          db.taskTags.filter((x) => x.task_id === task),
+        );
+      if (req.method() === 'POST') {
+        db.taskTags.push(...(body as { task_id: string; tag_id: string }[]));
+        return route.fulfill({ status: 201, headers: cors });
+      }
+      if (req.method() === 'DELETE') {
+        const ids = (url.searchParams.get('tag_id') ?? '').replace(/^in\.\(|\)$/g, '').split(',');
+        db.taskTags = db.taskTags.filter((x) => !(x.task_id === task && ids.includes(x.tag_id)));
+        return route.fulfill({ status: 204, headers: cors });
+      }
     }
     if (table === 'profiles') {
       if (req.method() === 'PATCH') {
@@ -225,7 +300,7 @@ export async function mockSupabase(page: Page) {
           url.searchParams.get('deleted_at')!.startsWith('gte');
         return json(
           route,
-          db.tasks.filter((t) => (trash ? t.deleted_at : !t.deleted_at)),
+          db.tasks.filter((t) => (trash ? t.deleted_at : !t.deleted_at)).map(withTags),
         );
       }
       if (req.method() === 'POST') {
@@ -239,6 +314,8 @@ export async function mockSupabase(page: Page) {
           status: 'open',
           assignee_id: null,
           rrule: null,
+          repeat_mode: 'fixed',
+          repeat_after_days: null,
           completed_at: null,
           deleted_at: null,
           position: 0,
@@ -248,12 +325,12 @@ export async function mockSupabase(page: Page) {
           ...body,
         };
         db.tasks.push(row);
-        return json(route, single ? row : [row], 201);
+        return json(route, single ? withTags(row) : [withTags(row)], 201);
       }
       if (req.method() === 'PATCH') {
         const row = db.tasks.find((t) => t.id === eq)!;
         Object.assign(row, body);
-        return json(route, single ? row : [row]);
+        return json(route, single ? withTags(row) : [withTags(row)]);
       }
       if (req.method() === 'DELETE') {
         db.tasks = db.tasks.filter((t) => t.id !== eq);

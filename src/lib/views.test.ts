@@ -19,6 +19,9 @@ function task(p: Partial<Task>): Task {
     status: 'open',
     assignee_id: null,
     rrule: null,
+    repeat_mode: 'fixed',
+    repeat_after_days: null,
+    tags: [],
     completed_at: null,
     deleted_at: null,
     position: 0,
@@ -94,5 +97,13 @@ describe('views', () => {
     expect(searchTasks(list, 'brot')).toHaveLength(1);
     expect(searchTasks(list, 'pass')).toHaveLength(1);
     expect(searchTasks(list, '  ')).toEqual([]);
+  });
+
+  it('searchTasks findet auch Tags', () => {
+    const list = [
+      task({ title: 'Pass', tags: [{ id: 't', name: 'Reise', color: '#000' }] }),
+      task({ title: 'Brot' }),
+    ];
+    expect(searchTasks(list, 'reise').map((t) => t.title)).toEqual(['Pass']);
   });
 });

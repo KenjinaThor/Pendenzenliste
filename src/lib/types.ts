@@ -21,12 +21,21 @@ export interface Task {
   status: Status;
   assignee_id: string | null;
   rrule: string | null;
+  repeat_mode: 'fixed' | 'after_completion';
+  repeat_after_days: number | null;
   completed_at: string | null;
   deleted_at: string | null;
   position: number;
   created_at: string;
   updated_at: string;
   subtasks: Subtask[];
+  tags: Tag[];
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface TodoList {

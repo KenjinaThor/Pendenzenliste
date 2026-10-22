@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { isRecurring, nextOccurrence } from './recurrence';
 import { supabase } from './supabase';
 import type {
   ActivityEntry,
@@ -12,16 +13,26 @@ import type {
   Role,
   Status,
   Subtask,
+  Tag,
   Task,
   TodoList,
 } from './types';
 
 const keys = { lists: ['lists'], tasks: ['tasks'], trash: ['trash'] } as const;
 
-const TASK_SELECT = '*, subtasks(*)';
+const TASK_SELECT = '*, subtasks(*), task_tags(tags(id, name, color))';
 
-function sortSubtasks(task: Task): Task {
-  return { ...task, subtasks: [...(task.subtasks ?? [])].sort((a, b) => a.position - b.position) };
+/** Rohdaten der Datenbank in die App-Form bringen (Unteraufgaben sortiert, Tags ausgepackt). */
+function sortSubtasks(raw: Task): Task {
+  const { task_tags, ...task } = raw as Task & { task_tags?: { tags: Tag | null }[] };
+  return {
+    ...task,
+    subtasks: [...(task.subtasks ?? [])].sort((a, b) => a.position - b.position),
+    tags: (task_tags ?? [])
+      .map((t) => t.tags)
+      .filter((t): t is Tag => t !== null)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de-CH')),
+  };
 }
 
 // ---------------------------------------------------------------- Abfragen
@@ -126,9 +137,12 @@ export interface TaskInput {
   priority?: Priority;
   status?: Status;
   assignee_id?: string | null;
+  rrule?: string | null;
+  repeat_mode?: 'fixed' | 'after_completion';
+  repeat_after_days?: number | null;
 }
 
-type TaskPatch = Partial<Omit<Task, 'id' | 'subtasks'>>;
+type TaskPatch = Partial<Omit<Task, 'id' | 'subtasks' | 'tags'>>;
 
 function patchTask(qc: QueryClient, id: string, fn: (t: Task) => Task) {
   qc.setQueryData<Task[]>(keys.tasks, (old) => old?.map((t) => (t.id === id ? fn(t) : t)));
@@ -185,6 +199,120 @@ export function useSetDone() {
         completed_at: done ? new Date().toISOString() : null,
       },
     });
+}
+
+export interface CompletionResult {
+  /** Fälligkeit der Folge-Pendenz bei wiederkehrenden Pendenzen */
+  nextDue: Date | null;
+  undo: () => Promise<void>;
+}
+
+/**
+ * Pendenz erledigen. Wiederkehrende Pendenzen erzeugen dabei die nächste (atomar in der Datenbank);
+ * «undo» macht beides rückgängig.
+ */
+export function useCompleteTask() {
+  const qc = useQueryClient();
+  const setDone = useSetDone();
+  return async (task: Task): Promise<CompletionResult> => {
+    const next = isRecurring(task) ? nextOccurrence(task, new Date()) : null;
+    if (!next) {
+      await setDone(task, true);
+      return { nextDue: null, undo: async () => void (await setDone(task, false)) };
+    }
+    // sofort ausblenden, bei einem Fehler zurückrollen
+    const previous = qc.getQueryData<Task[]>(keys.tasks);
+    patchTask(qc, task.id, (t) => ({ ...t, status: 'done' }));
+    const { data, error } = await supabase.rpc('complete_recurring_task', {
+      p_task: task.id,
+      p_next_due: next.toISOString(),
+    });
+    if (error) {
+      qc.setQueryData(keys.tasks, previous);
+      throw error;
+    }
+    await qc.invalidateQueries({ queryKey: keys.tasks });
+    const cloneId = data as string;
+    return {
+      nextDue: next,
+      undo: async () => {
+        const { error: undoError } = await supabase.rpc('undo_recurring_completion', {
+          p_task: task.id,
+          p_clone: cloneId,
+          p_rrule: task.rrule,
+          p_mode: task.repeat_mode,
+          p_after: task.repeat_after_days,
+        });
+        if (undoError) throw undoError;
+        await qc.invalidateQueries({ queryKey: keys.tasks });
+      },
+    };
+  };
+}
+
+/** Tags einer Pendenz setzen (nach Namen); fehlende Tags werden in der Liste der Pendenz angelegt. */
+export function useSetTaskTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      listId,
+      names,
+    }: {
+      taskId: string;
+      listId: string;
+      names: string[];
+    }) => {
+      const wanted = [
+        ...new Map(names.map((n) => [n.trim().toLocaleLowerCase('de-CH'), n.trim()])).values(),
+      ].filter(Boolean);
+      const { data: existing, error } = await supabase
+        .from('tags')
+        .select('id, name')
+        .eq('list_id', listId);
+      if (error) throw error;
+      const byName = new Map(
+        (existing ?? []).map((t) => [t.name.toLocaleLowerCase('de-CH'), t.id as string]),
+      );
+
+      const missing = wanted.filter((n) => !byName.has(n.toLocaleLowerCase('de-CH')));
+      if (missing.length) {
+        const { data: created, error: insertError } = await supabase
+          .from('tags')
+          .insert(missing.map((name) => ({ list_id: listId, name })))
+          .select('id, name');
+        if (insertError) throw insertError;
+        for (const t of created ?? [])
+          byName.set(t.name.toLocaleLowerCase('de-CH'), t.id as string);
+      }
+      const wantedIds = new Set(wanted.map((n) => byName.get(n.toLocaleLowerCase('de-CH'))!));
+
+      const { data: current, error: currentError } = await supabase
+        .from('task_tags')
+        .select('tag_id')
+        .eq('task_id', taskId);
+      if (currentError) throw currentError;
+      const currentIds = new Set((current ?? []).map((r) => r.tag_id as string));
+
+      const remove = [...currentIds].filter((id) => !wantedIds.has(id));
+      const add = [...wantedIds].filter((id) => !currentIds.has(id));
+      if (remove.length) {
+        const { error: delError } = await supabase
+          .from('task_tags')
+          .delete()
+          .eq('task_id', taskId)
+          .in('tag_id', remove);
+        if (delError) throw delError;
+      }
+      if (add.length) {
+        const { error: addError } = await supabase
+          .from('task_tags')
+          .insert(add.map((tag_id) => ({ task_id: taskId, tag_id })));
+        if (addError) throw addError;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
+  });
 }
 
 /** In den Papierkorb verschieben bzw. wiederherstellen */

@@ -94,3 +94,27 @@ Einrichtung:
 
 Kontrolle: `select jobname, schedule from cron.job;` zeigt den Zeitplan, `select * from cron.job_run_details order by
 start_time desc limit 5;` die letzten Läufe. Der Zeitplan räumt täglich auch den Papierkorb (30 Tage) auf.
+
+## Komfort-Funktionen, Teil 1 (Phase 8a)
+
+1. **Migration:** im Supabase **SQL Editor** den Inhalt von `supabase/migrations/20261025000005_recurring_tasks.sql`
+   ausführen (Funktionen zum Erledigen wiederkehrender Pendenzen).
+2. **Schnelleingabe in natürlicher Sprache** (Feld oben in «Heute», «Alle» und in jeder Liste). Unter dem Feld steht,
+   was erkannt wurde:
+
+   | Eingabe                                                                                                                    | Bedeutung                   |
+   | -------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+   | `heute`, `morgen`, `übermorgen`, `Freitag`, `nächsten Montag`, `in 3 Tagen`, `nächste Woche`, `Ende Monat`, `15.11.`       | Datum                       |
+   | `14 Uhr`, `14:30`, `um 9`                                                                                                  | Uhrzeit                     |
+   | `#Privat`, `#"Mein Haushalt"`                                                                                              | Liste                       |
+   | `!hoch`, `!mittel`, `!tief` (oder `!1 !2 !3`)                                                                              | Priorität                   |
+   | `@Anna`, `@ich`                                                                                                            | Person (Mitglied der Liste) |
+   | `+wichtig`                                                                                                                 | Tag                         |
+   | `jeden Tag`, `jede Woche`, `alle 2 Wochen`, `jeden Montag und Mittwoch`, `werktags`, `monatlich`, `3 Tage nach Erledigung` | Wiederholung                |
+
+   Beispiel: `Steuererklärung einreichen morgen 14 Uhr #Privat !hoch @Anna +wichtig`
+
+3. **Wiederkehrende Pendenzen:** Beim Abhaken entsteht automatisch die nächste Pendenz (Unteraufgaben zurückgesetzt,
+   Tags und Erinnerungen übernommen); «Rückgängig» macht beides rückgängig. Verpasste Termine werden übersprungen.
+4. **Tastenkürzel am PC:** `N` neue Pendenz, `/` Suche, `J`/`K` auswählen, `E` erledigen, `Enter` öffnen, `?` Übersicht.
+5. **Wischgesten auf dem iPhone:** Zeile nach rechts = erledigt, nach links = «Morgen» (verschieben) oder löschen.

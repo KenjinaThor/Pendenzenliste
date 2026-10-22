@@ -135,7 +135,8 @@ export function searchTasks(tasks: Task[], query: string): Task[] {
       (t) =>
         t.title.toLocaleLowerCase('de-CH').includes(q) ||
         t.notes_md.toLocaleLowerCase('de-CH').includes(q) ||
-        t.subtasks.some((s) => s.title.toLocaleLowerCase('de-CH').includes(q)),
+        t.subtasks.some((s) => s.title.toLocaleLowerCase('de-CH').includes(q)) ||
+        t.tags.some((tag) => tag.name.toLocaleLowerCase('de-CH').includes(q)),
     )
     .sort(compareTasks);
 }

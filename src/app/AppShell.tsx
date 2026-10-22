@@ -6,7 +6,9 @@ import { useRealtimeSync } from '../features/sharing/useRealtimeSync';
 import { countFor } from '../lib/views';
 import { useAuth } from '../features/auth/AuthProvider';
 import { InstallHint } from '../features/onboarding/InstallHint';
+import { Shortcuts, SHOW_SHORTCUTS_EVENT } from '../features/shortcuts/Shortcuts';
 import { EditorProvider, useEditor } from '../features/tasks/EditorContext';
+import { SelectionProvider } from '../features/tasks/SelectionContext';
 import { NavContent } from './NavContent';
 import { SnackbarProvider } from '../components/Snackbar';
 import { toDateInput } from '../lib/dates';
@@ -70,66 +72,75 @@ export function AppShell() {
   return (
     <SnackbarProvider>
       <EditorProvider>
-        <div className="flex h-full pt-[var(--safe-top)]">
-          <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-slate-200 p-3 md:block dark:border-slate-700">
-            <div className="mb-4 flex items-center gap-2 px-3 pt-2">
-              <img
-                src={`${import.meta.env.BASE_URL}icon.svg`}
-                alt=""
-                className="h-8 w-8 rounded-lg"
-              />
-              <span className="text-lg font-bold">Pendenzen</span>
-            </div>
-            <NavContent />
-          </aside>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <InstallHint />
-            <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
-              <Outlet />
-            </main>
-            <nav
-              aria-label="Hauptmenü"
-              className="flex border-t border-slate-200 bg-white pb-[var(--safe-bottom)] md:hidden dark:border-slate-700 dark:bg-slate-800"
-            >
-              <NavLink to="/heute" className={tab}>
-                <span aria-hidden className="text-xl">
-                  ☀️
-                </span>
-                Heute
-                {todayCount > 0 && (
-                  <span className="absolute top-1 right-1/4 rounded-full bg-indigo-600 px-1.5 text-[10px] text-white">
-                    {todayCount}
+        <SelectionProvider>
+          <Shortcuts />
+          <div className="flex h-full pt-[var(--safe-top)]">
+            <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-slate-200 p-3 md:block dark:border-slate-700">
+              <div className="mb-4 flex items-center gap-2 px-3 pt-2">
+                <img
+                  src={`${import.meta.env.BASE_URL}icon.svg`}
+                  alt=""
+                  className="h-8 w-8 rounded-lg"
+                />
+                <span className="text-lg font-bold">Pendenzen</span>
+              </div>
+              <NavContent />
+              <button
+                onClick={() => window.dispatchEvent(new Event(SHOW_SHORTCUTS_EVENT))}
+                className="mt-4 w-full rounded-xl px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                ⌨️ Tastenkürzel (?)
+              </button>
+            </aside>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <InstallHint />
+              <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
+                <Outlet />
+              </main>
+              <nav
+                aria-label="Hauptmenü"
+                className="flex border-t border-slate-200 bg-white pb-[var(--safe-bottom)] md:hidden dark:border-slate-700 dark:bg-slate-800"
+              >
+                <NavLink to="/heute" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    ☀️
                   </span>
-                )}
-              </NavLink>
-              <NavLink to="/demnaechst" className={tab}>
-                <span aria-hidden className="text-xl">
-                  🗓️
-                </span>
-                Demnächst
-              </NavLink>
-              <NavLink to="/listen" className={tab}>
-                <span aria-hidden className="text-xl">
-                  📋
-                </span>
-                Listen
-              </NavLink>
-              <NavLink to="/suche" className={tab}>
-                <span aria-hidden className="text-xl">
-                  🔍
-                </span>
-                Suche
-              </NavLink>
-              <NavLink to="/einstellungen" className={tab}>
-                <span aria-hidden className="text-xl">
-                  ⚙️
-                </span>
-                Mehr
-              </NavLink>
-            </nav>
+                  Heute
+                  {todayCount > 0 && (
+                    <span className="absolute top-1 right-1/4 rounded-full bg-indigo-600 px-1.5 text-[10px] text-white">
+                      {todayCount}
+                    </span>
+                  )}
+                </NavLink>
+                <NavLink to="/demnaechst" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    🗓️
+                  </span>
+                  Demnächst
+                </NavLink>
+                <NavLink to="/listen" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    📋
+                  </span>
+                  Listen
+                </NavLink>
+                <NavLink to="/suche" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    🔍
+                  </span>
+                  Suche
+                </NavLink>
+                <NavLink to="/einstellungen" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    ⚙️
+                  </span>
+                  Mehr
+                </NavLink>
+              </nav>
+            </div>
           </div>
-        </div>
-        <Fab />
+          <Fab />
+        </SelectionProvider>
       </EditorProvider>
     </SnackbarProvider>
   );
