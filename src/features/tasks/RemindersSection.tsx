@@ -114,7 +114,7 @@ export function RemindersSection({ taskId, hasDue, allDay, drafts, onDraftsChang
           </button>
         </div>
       </div>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
         Erinnerungen kommen als Mitteilung aufs Gerät – aktivierbar unter{' '}
         <a href="#/einstellungen" className="underline">
           Einstellungen

@@ -80,7 +80,14 @@ async function updateTask({ id, patch, ts }: UpdateTaskVars) {
     p_patch: clean,
     p_ts: ts,
   });
-  if (error) throw error;
+  if (!error) return;
+  // Ist die Datenbank-Funktion noch nicht eingerichtet (Migration 6 fehlt), direkt speichern – ohne Konfliktregel.
+  if (error.code === 'PGRST202' || /update_task_fields/.test(error.message)) {
+    const { error: directError } = await supabase.from('tasks').update(clean).eq('id', id);
+    if (directError) throw directError;
+    return;
+  }
+  throw error;
 }
 
 async function createTask({ task }: CreateTaskVars) {

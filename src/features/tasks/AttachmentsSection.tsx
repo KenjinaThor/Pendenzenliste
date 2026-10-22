@@ -51,7 +51,9 @@ export function AttachmentsSection({
     <section aria-label="Anhänge">
       <p className="mb-2 text-sm font-medium">
         Anhänge{' '}
-        {attachments.length > 0 && <span className="text-slate-500">({attachments.length})</span>}
+        {attachments.length > 0 && (
+          <span className="text-slate-600 dark:text-slate-400">({attachments.length})</span>
+        )}
       </p>
       {attachments.length > 0 && (
         <ul className="mb-2 flex flex-col gap-1">
@@ -64,14 +66,16 @@ export function AttachmentsSection({
               >
                 <span aria-hidden>{a.mime?.startsWith('image/') ? '🖼️' : '📄'}</span>
                 <span className="truncate">{a.file_name}</span>
-                <span className="shrink-0 text-xs text-slate-500">{formatBytes(a.size_bytes)}</span>
+                <span className="shrink-0 text-xs text-slate-600 dark:text-slate-400">
+                  {formatBytes(a.size_bytes)}
+                </span>
               </button>
               {canEdit && (
                 <button
                   type="button"
                   aria-label={`Anhang ${a.file_name} löschen`}
                   onClick={() => window.confirm(`«${a.file_name}» löschen?`) && remove.mutate(a)}
-                  className="h-9 w-9 text-slate-400"
+                  className="h-9 w-9 text-slate-500 dark:text-slate-400"
                 >
                   ×
                 </button>
@@ -125,16 +129,18 @@ export function AttachmentsSection({
         </div>
       )}
       {upload.isPending && (
-        <p role="status" className="mt-2 text-sm text-slate-500">
+        <p role="status" className="mt-2 text-sm text-slate-600 dark:text-slate-400">
           Lade hoch …
         </p>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">
           {error}
         </p>
       )}
-      <p className="mt-1 text-xs text-slate-500">Fotos und PDF, höchstens 5 MB pro Datei.</p>
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+        Fotos und PDF, höchstens 5 MB pro Datei.
+      </p>
     </section>
   );
 }

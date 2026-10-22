@@ -71,7 +71,9 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
           >
             <h3 className="mb-2 flex items-center justify-between text-sm font-semibold">
               {STATUS_LABEL[status]}
-              <span className="font-normal text-slate-500">{column.length}</span>
+              <span className="font-normal text-slate-600 dark:text-slate-400">
+                {column.length}
+              </span>
             </h3>
             <ul className="flex flex-col gap-2">
               {column.map((t) => (
@@ -84,13 +86,17 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
                 >
                   <button onClick={() => openTask(t.id)} className="block w-full text-left">
                     <span
-                      className={`block font-medium ${status === 'done' ? 'text-slate-400 line-through' : ''}`}
+                      className={`block font-medium ${status === 'done' ? 'text-slate-500 dark:text-slate-400 line-through' : ''}`}
                     >
                       {t.title}
                     </span>
-                    <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-500">
+                    <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-600 dark:text-slate-400">
                       {t.due_at && (
-                        <span className={isOverdue(t, now) ? 'font-medium text-red-600' : ''}>
+                        <span
+                          className={
+                            isOverdue(t, now) ? 'font-medium text-red-600 dark:text-red-300' : ''
+                          }
+                        >
                           {formatDue(new Date(t.due_at), t.due_all_day, now)}
                         </span>
                       )}

@@ -92,7 +92,7 @@ export function LoginPage() {
         Mit Google anmelden
       </button>
 
-      <div className="flex items-center gap-3 text-sm text-slate-500">
+      <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
         <span className="h-px flex-1 bg-slate-300 dark:bg-slate-700" /> oder per E-Mail
         <span className="h-px flex-1 bg-slate-300 dark:bg-slate-700" />
       </div>
@@ -149,7 +149,7 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => setStep('start')}
-            className="text-sm text-slate-500 underline"
+            className="text-sm text-slate-600 dark:text-slate-400 underline"
           >
             Andere E-Mail-Adresse verwenden
           </button>

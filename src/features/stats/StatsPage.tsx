@@ -7,15 +7,15 @@ const card = 'rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800';
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className={card}>
-      <p className="text-sm text-slate-500">{label}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
       <p className="mt-1 text-3xl font-bold">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{hint}</p>}
     </div>
   );
 }
 
 export function StatsPage() {
-  const { data: tasks = [], isLoading } = useTasks();
+  const { data: tasks = [], isPending } = useTasks();
   const s = computeStats(tasks, new Date());
   const max = Math.max(1, ...s.weeks.map((w) => w.done));
   const barW = 36;
@@ -26,8 +26,8 @@ export function StatsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="📊 Statistik" />
-      {isLoading ? (
-        <p className="px-4 py-12 text-center text-slate-500">Lade …</p>
+      {isPending ? (
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>
       ) : (
         <div className="flex flex-col gap-4 px-4 pb-6">
           <div className="grid grid-cols-2 gap-3">
@@ -101,7 +101,7 @@ export function StatsPage() {
                 className="stroke-slate-300 dark:stroke-slate-600"
               />
             </svg>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               Beschriftung: Montag der jeweiligen Woche.
             </p>
           </section>

@@ -185,11 +185,11 @@ export function PushSettings() {
             ))}
           </select>
         </label>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
           Ganztägige Pendenzen erinnern um 09:00 Uhr in dieser Zeitzone.
         </p>
         {updateProfile.error && (
-          <p role="alert" className="mt-2 text-sm text-red-700">
+          <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">
             {(updateProfile.error as Error).message}
           </p>
         )}

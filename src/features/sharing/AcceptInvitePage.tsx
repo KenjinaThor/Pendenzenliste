@@ -36,7 +36,7 @@ export function AcceptInvitePage() {
           </Link>
         </>
       ) : (
-        <p className="py-12 text-slate-500">Einladung wird angenommen …</p>
+        <p className="py-12 text-slate-600 dark:text-slate-400">Einladung wird angenommen …</p>
       )}
     </div>
   );

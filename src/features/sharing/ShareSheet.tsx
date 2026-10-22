@@ -89,7 +89,9 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
                     {m.profiles?.name}
                     {m.user_id === userId ? ' (du)' : ''}
                   </span>
-                  <span className="block truncate text-xs text-slate-500">{m.profiles?.email}</span>
+                  <span className="block truncate text-xs text-slate-600 dark:text-slate-400">
+                    {m.profiles?.email}
+                  </span>
                 </span>
                 {owner && m.role !== 'owner' ? (
                   <>
@@ -106,7 +108,7 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
                     </select>
                     <button
                       aria-label={`${m.profiles?.name} entfernen`}
-                      className="h-9 w-9 text-slate-400"
+                      className="h-9 w-9 text-slate-500 dark:text-slate-400"
                       onClick={() =>
                         window.confirm(`${m.profiles?.name} aus der Liste entfernen?`) &&
                         remove.mutate({ listId, userId: m.user_id })
@@ -116,7 +118,9 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
                     </button>
                   </>
                 ) : (
-                  <span className="text-sm text-slate-500">{ROLE_LABEL[m.role]}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">
+                    {ROLE_LABEL[m.role]}
+                  </span>
                 )}
               </li>
             ))}
@@ -152,7 +156,7 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
             >
               Einladungslink erstellen
             </button>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
               Mit E-Mail-Adresse: Die Person erhält automatisch Zugriff, sobald sie sich mit dieser
               Adresse anmeldet. Den Link kannst du ihr zusätzlich schicken. Er funktioniert nur
               einmal und ist 14 Tage gültig.
@@ -195,7 +199,7 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
                         {i.email ?? 'Nur Link'} · {ROLE_LABEL[i.role]}
                       </span>
                       <button
-                        className="text-red-700"
+                        className="text-red-700 dark:text-red-300"
                         onClick={() => revoke.mutate({ id: i.id, listId })}
                       >
                         Zurückziehen
@@ -209,7 +213,7 @@ export function ShareSheet({ listId, onClose }: { listId: string; onClose: () =>
         ) : (
           <button
             onClick={leave}
-            className="h-12 rounded-xl border border-red-300 font-medium text-red-700"
+            className="h-12 rounded-xl border border-red-300 font-medium text-red-700 dark:text-red-300"
           >
             Liste verlassen
           </button>

@@ -54,7 +54,7 @@ function heuteSections(
 }
 
 export function ViewPage({ view }: { view: ViewKey }) {
-  const { data: tasks = [], isLoading, error } = useTasks();
+  const { data: tasks = [], isPending, error } = useTasks();
   const { session } = useAuth();
   const meta = VIEWS.find((v) => v.key === view)!;
   const options = useFilterOptions();
@@ -99,8 +99,8 @@ export function ViewPage({ view }: { view: ViewKey }) {
         <p role="alert" className="mx-4 rounded-lg bg-red-100 p-3 text-sm text-red-800">
           {(error as Error).message}
         </p>
-      ) : isLoading ? (
-        <p className="px-4 py-12 text-center text-slate-500">Lade …</p>
+      ) : isPending ? (
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>
       ) : (
         <TaskSections sections={sections} emptyText={EMPTY[view]} />
       )}

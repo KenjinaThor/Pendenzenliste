@@ -26,7 +26,7 @@ const readMode = (listId: string): Mode => {
 
 export function ListPage() {
   const { id } = useParams();
-  const { data: lists = [], isLoading: listsLoading } = useLists();
+  const { data: lists = [], isPending: listsLoading } = useLists();
   const { data: tasks = [] } = useTasks();
   const { session } = useAuth();
   const { openList } = useEditor();
@@ -39,7 +39,8 @@ export function ListPage() {
   const [modeState, setModeState] = useState<{ id: string; mode: Mode } | null>(null);
   const list = lists.find((l) => l.id === id);
 
-  if (listsLoading) return <p className="px-4 py-12 text-center text-slate-500">Lade …</p>;
+  if (listsLoading)
+    return <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>;
   if (!list) return <Navigate to="/heute" replace />;
 
   const mode = modeState?.id === list.id ? modeState.mode : readMode(list.id);
@@ -110,7 +111,9 @@ export function ListPage() {
       {perms.canEdit(list.id) ? (
         <QuickAdd listId={list.id} />
       ) : (
-        <p className="px-4 pb-3 text-sm text-slate-500">Du hast in dieser Liste nur Leserechte.</p>
+        <p className="px-4 pb-3 text-sm text-slate-600 dark:text-slate-400">
+          Du hast in dieser Liste nur Leserechte.
+        </p>
       )}
       <FilterBar
         value={filter}

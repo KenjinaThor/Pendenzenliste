@@ -38,7 +38,7 @@ export function TagsSection({
                 type="button"
                 aria-label={`Tag ${n} entfernen`}
                 onClick={() => onChange(names.filter((x) => x !== n))}
-                className="h-7 w-7 rounded-full text-slate-500"
+                className="h-7 w-7 rounded-full text-slate-600 dark:text-slate-400"
               >
                 ×
               </button>

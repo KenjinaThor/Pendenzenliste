@@ -55,7 +55,7 @@ export function FilterBar({
         {!isDefaultFilter(value) && (
           <button
             onClick={() => onChange(EMPTY_FILTER)}
-            className="text-sm text-slate-500 underline"
+            className="text-sm text-slate-600 dark:text-slate-400 underline"
           >
             Zurücksetzen
           </button>

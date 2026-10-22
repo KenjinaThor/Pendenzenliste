@@ -111,7 +111,7 @@ export function Shortcuts() {
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-sm text-slate-500">
+      <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
         Auf dem iPhone: Zeile nach rechts wischen = erledigt, nach links wischen = auf morgen
         verschieben oder löschen.
       </p>

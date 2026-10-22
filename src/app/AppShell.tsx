@@ -15,7 +15,7 @@ import { SnackbarProvider } from '../components/Snackbar';
 import { toDateInput } from '../lib/dates';
 
 const tab = ({ isActive }: { isActive: boolean }) =>
-  `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${isActive ? 'font-semibold text-indigo-600 dark:text-indigo-300' : 'text-slate-500'}`;
+  `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${isActive ? 'font-semibold text-indigo-600 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400'}`;
 
 function Fab() {
   const { newTask } = useEditor();
@@ -88,7 +88,7 @@ export function AppShell() {
               <NavContent />
               <button
                 onClick={() => window.dispatchEvent(new Event(SHOW_SHORTCUTS_EVENT))}
-                className="mt-4 w-full rounded-xl px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="mt-4 w-full rounded-xl px-3 py-2 text-left text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               >
                 ⌨️ Tastenkürzel (?)
               </button>

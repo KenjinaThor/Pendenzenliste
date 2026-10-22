@@ -2,7 +2,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { usePurgeTask, useTrash, useTrashTask } from '../../lib/api';
 
 export function TrashPage() {
-  const { data: trash = [], isLoading } = useTrash();
+  const { data: trash = [], isPending } = useTrash();
   const restore = useTrashTask();
   const purge = usePurgeTask();
 
@@ -12,10 +12,12 @@ export function TrashPage() {
         title="🗑️ Papierkorb"
         subtitle="Gelöschte Pendenzen sind 30 Tage wiederherstellbar."
       />
-      {isLoading ? (
-        <p className="px-4 py-12 text-center text-slate-500">Lade …</p>
+      {isPending ? (
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>
       ) : trash.length === 0 ? (
-        <p className="px-4 py-12 text-center text-slate-500">Der Papierkorb ist leer.</p>
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">
+          Der Papierkorb ist leer.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2 px-4 pb-4">
           {trash.map((t) => (
@@ -35,7 +37,7 @@ export function TrashPage() {
                   window.confirm(`«${t.title}» endgültig löschen?`) && purge.mutate(t.id)
                 }
                 aria-label={`${t.title} endgültig löschen`}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-red-700"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300"
               >
                 Löschen
               </button>

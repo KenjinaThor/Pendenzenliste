@@ -119,7 +119,7 @@ export function ListEditor({ listId, onClose }: { listId: string | null; onClose
           <button
             type="button"
             onClick={onDelete}
-            className="h-12 rounded-xl border border-red-300 font-medium text-red-700"
+            className="h-12 rounded-xl border border-red-300 font-medium text-red-700 dark:text-red-300"
           >
             Liste löschen
           </button>

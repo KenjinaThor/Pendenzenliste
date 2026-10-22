@@ -1,23 +1,17 @@
 import { onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '../features/settings/ThemeProvider';
-import { StatsPage } from '../features/stats/StatsPage';
 import { AuthProvider, useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AcceptInvitePage } from '../features/sharing/AcceptInvitePage';
-import { CalendarPage } from '../features/calendar/CalendarPage';
 import { TaskDeepLink } from '../features/tasks/TaskDeepLink';
-import { CalendarViewPage } from '../features/calendarview/CalendarViewPage';
-import { SmartListPage } from '../features/filters/SmartListPage';
 import { ListPage } from '../features/lists/ListPage';
 import { ListsPage } from '../features/lists/ListsPage';
 import { SearchPage } from '../features/search/SearchPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
-import { DataPage } from '../features/data/DataPage';
-import { TemplatesPage } from '../features/templates/TemplatesPage';
 import { TrashPage } from '../features/trash/TrashPage';
 import { ViewPage } from '../features/views/ViewPage';
 import { clearLocalData, persister, queryClient } from '../lib/queryClient';
@@ -25,31 +19,57 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { VIEWS } from '../lib/views';
 import { AppShell } from './AppShell';
 
+// Selten genutzte Seiten werden erst bei Bedarf geladen (schnellerer Start)
+const CalendarViewPage = lazy(() =>
+  import('../features/calendarview/CalendarViewPage').then((m) => ({
+    default: m.CalendarViewPage,
+  })),
+);
+const StatsPage = lazy(() =>
+  import('../features/stats/StatsPage').then((m) => ({ default: m.StatsPage })),
+);
+const DataPage = lazy(() =>
+  import('../features/data/DataPage').then((m) => ({ default: m.DataPage })),
+);
+const TemplatesPage = lazy(() =>
+  import('../features/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })),
+);
+const CalendarPage = lazy(() =>
+  import('../features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })),
+);
+const SmartListPage = lazy(() =>
+  import('../features/filters/SmartListPage').then((m) => ({ default: m.SmartListPage })),
+);
+
 function Authenticated() {
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Navigate to="/heute" replace />} />
-        {VIEWS.map((v) => (
-          <Route key={v.key} path={`/${v.key}`} element={<ViewPage view={v.key} />} />
-        ))}
-        <Route path="/liste/:id" element={<ListPage />} />
-        <Route path="/filter/:id" element={<SmartListPage />} />
-        <Route path="/kalenderansicht" element={<CalendarViewPage />} />
-        <Route path="/statistik" element={<StatsPage />} />
-        <Route path="/listen" element={<ListsPage />} />
-        <Route path="/suche" element={<SearchPage />} />
-        <Route path="/daten" element={<DataPage />} />
-        <Route path="/vorlagen" element={<TemplatesPage />} />
-        <Route path="/papierkorb" element={<TrashPage />} />
-        <Route path="/mitteilungen" element={<NotificationsPage />} />
-        <Route path="/einladung/:token" element={<AcceptInvitePage />} />
-        <Route path="/kalender" element={<CalendarPage />} />
-        <Route path="/pendenz/:id" element={<TaskDeepLink />} />
-        <Route path="/einstellungen" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/heute" replace />} />
-      </Route>
-    </Routes>
+    <Suspense
+      fallback={<p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>}
+    >
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/heute" replace />} />
+          {VIEWS.map((v) => (
+            <Route key={v.key} path={`/${v.key}`} element={<ViewPage view={v.key} />} />
+          ))}
+          <Route path="/liste/:id" element={<ListPage />} />
+          <Route path="/filter/:id" element={<SmartListPage />} />
+          <Route path="/kalenderansicht" element={<CalendarViewPage />} />
+          <Route path="/statistik" element={<StatsPage />} />
+          <Route path="/listen" element={<ListsPage />} />
+          <Route path="/suche" element={<SearchPage />} />
+          <Route path="/daten" element={<DataPage />} />
+          <Route path="/vorlagen" element={<TemplatesPage />} />
+          <Route path="/papierkorb" element={<TrashPage />} />
+          <Route path="/mitteilungen" element={<NotificationsPage />} />
+          <Route path="/einladung/:token" element={<AcceptInvitePage />} />
+          <Route path="/kalender" element={<CalendarPage />} />
+          <Route path="/pendenz/:id" element={<TaskDeepLink />} />
+          <Route path="/einstellungen" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/heute" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 

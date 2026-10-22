@@ -13,7 +13,7 @@ const card = 'rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800';
 
 export function CalendarPage() {
   const { session } = useAuth();
-  const { data: feed, isLoading, error } = useCalendarFeed();
+  const { data: feed, isPending, error } = useCalendarFeed();
   const { data: lists = [] } = useLists();
   const rotate = useRotateCalendarToken();
   const saveLists = useSaveCalendarLists();
@@ -62,8 +62,8 @@ export function CalendarPage() {
             {(error as Error).message}
           </p>
         )}
-        {isLoading ? (
-          <p className="py-8 text-center text-slate-500">Lade …</p>
+        {isPending ? (
+          <p className="py-8 text-center text-slate-600 dark:text-slate-400">Lade …</p>
         ) : !url ? (
           <section className={card}>
             <p className="mb-3">
@@ -108,7 +108,7 @@ export function CalendarPage() {
                   {copied ? 'Kopiert ✓' : 'Kopieren'}
                 </button>
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                 Der Link ist geheim: Wer ihn kennt, sieht deine Termine. Gib ihn nicht weiter.
               </p>
             </section>
@@ -188,7 +188,7 @@ export function CalendarPage() {
             <button
               onClick={regenerate}
               disabled={rotate.isPending}
-              className="h-12 rounded-xl border border-red-300 font-medium text-red-700 disabled:opacity-60"
+              className="h-12 rounded-xl border border-red-300 font-medium text-red-700 dark:text-red-300 disabled:opacity-60"
             >
               Link neu erzeugen (alter Link wird ungültig)
             </button>

@@ -99,7 +99,7 @@ export function RepeatSection({
         </div>
       )}
       {value.kind !== 'none' && !disabled && (
-        <p className="mt-1 text-xs text-slate-500">🔁 {summary}</p>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">🔁 {summary}</p>
       )}
     </section>
   );

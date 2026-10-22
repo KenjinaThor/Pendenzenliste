@@ -1,154 +1,151 @@
 # Pendenzen
 
-Pendenzenliste als Progressive Web App (iPhone und PC), kostenlos betrieben über GitHub Pages und Supabase.
+Pendenzenliste als Progressive Web App für iPhone (zum Home-Bildschirm hinzugefügt) und PC-Browser. Läuft dauerhaft
+**kostenlos**: GitHub Pages (Frontend) + Supabase Free Tier (Datenbank, Login, Live-Sync, Speicher, Edge Functions).
 
 **Live:** https://kenjinathor.github.io/Pendenzenliste/
+
+## Funktionen
+
+- **Pendenzen** mit Notizen, Fälligkeit (ganztägig oder mit Uhrzeit und Dauer), Priorität, Status, Tags, Unteraufgaben,
+  Wiederholung (täglich, wöchentlich an Wochentagen, monatlich, jährlich, «x Tage nach Erledigung»), Erinnerungen,
+  Dateianhängen (Foto aufnehmen, PDF) und Papierkorb (30 Tage).
+- **Schnelleingabe auf Deutsch:** «Steuererklärung morgen 14 Uhr #Privat !hoch @Anna +wichtig jeden Montag».
+- **Ansichten:** Heute (mit Tagesfokus «Meine 3»), Demnächst, Überfällig, Alle, Mir zugewiesen, Erledigt, Kanban pro Liste,
+  Kalender (Monat/Woche, Ziehen zum Verschieben, Schweizer Feiertage), Suche, Statistik. Filter und Sortierung lassen
+  sich als **Intelligente Listen** speichern.
+- **Zusammenarbeit:** Listen teilen (Besitzer/Bearbeiter/Leser) per Link oder E-Mail, Zuweisung, Kommentare mit @Erwähnung,
+  Aktivitätsverlauf, Live-Synchronisierung auf allen Geräten.
+- **Kalender-Abo:** persönlicher ICS-Feed für Apple Kalender, Google Kalender und Outlook; zusätzlich Einzel-Export pro Pendenz.
+- **Benachrichtigungen:** Web-Push für Erinnerungen, Zuweisungen, Erwähnungen und eine tägliche Zusammenfassung.
+- **Offline:** Die App öffnet sich ohne Verbindung; Änderungen werden vorgemerkt und später übertragen (neuester
+  Zeitstempel gewinnt pro Feld).
+- **Weiteres:** Vorlagen, Import/Export (CSV, JSON-Backup), Hell/Dunkel, Tastenkürzel am PC, Wischgesten auf dem iPhone.
+
+## Architektur
+
+```
+iPhone / PC (React-PWA, Service Worker, IndexedDB-Zwischenspeicher)
+        │  GitHub Pages (statisch, Deployment per GitHub Actions)
+        ▼
+   Supabase ─ Postgres + Row Level Security (alle Rechte in der Datenbank, getestet)
+            ├ Auth (Google, E-Mail-Code)      ├ Realtime (Live-Sync)
+            ├ Storage (Anhänge, privat)        ├ Edge Function «calendar»       → ICS-Feed (geheimer Link)
+            └ pg_cron (jede Minute) ────────→  Edge Function «send-reminders»  → Web-Push (VAPID)
+```
+
+Sicherheit: Im öffentlichen Repository steht kein Geheimnis. Das Frontend kennt nur die öffentliche Projekt-URL und den
+Publishable-Key; Zugriffe schützt Row Level Security. Geheimnisse (Zugriffs-Token für das Deployment, Push-Schlüssel,
+Zeitplan-Geheimnis) liegen in GitHub-Secrets bzw. in der für App-Benutzer unlesbaren Tabelle `app_config`.
+
+## Kosten und Gratis-Limits
+
+| Dienst                     | Limit (Free)                  | Hinweis                                                     |
+| -------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| GitHub Pages / Actions     | öffentliches Repo: unbegrenzt | Repo muss öffentlich bleiben                                |
+| Supabase Datenbank         | 500 MB                        | Text-Daten, reicht für Jahre                                |
+| Supabase Storage           | 1 GB                          | Anhänge max. 5 MB pro Datei, Fotos werden verkleinert       |
+| Supabase Edge Functions    | 500 000 Aufrufe/Monat         | Zeitplan: 43 200 Aufrufe/Monat (1 pro Minute)               |
+| Supabase Pause             | nach 7 Tagen Inaktivität      | verhindert der Workflow «Supabase Keep-alive» (alle 3 Tage) |
+| E-Mail (Supabase-Standard) | sehr wenige Mails/Stunde      | für mehr: eigener SMTP-Dienst (z. B. Brevo, gratis)         |
+
+Nicht enthalten, weil kostenpflichtig: «Mit Apple anmelden» (Apple-Entwicklerkonto, 99 USD/Jahr). Die Anmeldung ist so
+aufgebaut, dass Apple später ergänzt werden kann.
+
+## Einrichtung (einmalig)
+
+### 1. GitHub
+
+1. Repository **öffentlich** halten. Unter **Settings → Pages → Source** den Eintrag **GitHub Actions** wählen.
+2. Jeder Push auf `main` baut und veröffentlicht die App (`.github/workflows/deploy.yml`).
+
+### 2. Supabase-Projekt und Datenbank
+
+1. Auf https://supabase.com ein Projekt erstellen (Gratis-Plan).
+2. Im **SQL Editor** die Dateien aus `supabase/migrations/` **in dieser Reihenfolge** einfügen und mit **Run** ausführen
+   (Warnung «destruktiv» bestätigen):
+
+   | Datei                                       | Inhalt                                             |
+   | ------------------------------------------- | -------------------------------------------------- |
+   | `20261022000001_core_schema.sql`            | Tabellen, Rechte (RLS), Einladungen, Konto löschen |
+   | `20261022000002_calendar_token_visible.sql` | Kalender-Link                                      |
+   | `20261023000003_sharing_realtime.sql`       | Live-Sync, Mitteilungen, Kommentare                |
+   | `20261024000004_push_reminders.sql`         | Erinnerungen, Push, Zeitplan, Aufräumen            |
+   | `20261025000005_recurring_tasks.sql`        | wiederkehrende Pendenzen                           |
+   | `20261026000006_offline_attachments.sql`    | Offline-Synchronisierung, Anhänge                  |
+
+3. Zeitplan aktivieren: Erscheint beim Ausführen von Datei 4 ein Hinweis zu `pg_cron`/`pg_net`, diese unter
+   **Database → Extensions** einschalten und den Abschnitt «Zeitplan» am Ende der Datei erneut ausführen. Danach einmalig
+   (eigene Projekt-Adresse einsetzen): `select public.configure_push('https://<projekt-id>.supabase.co');`
+
+### 3. Anmeldung
+
+1. **Authentication → URL Configuration:** Site URL `https://kenjinathor.github.io/Pendenzenliste/`; Redirect URLs
+   `https://kenjinathor.github.io/Pendenzenliste/**` und `http://localhost:5173/**`.
+2. **Google:** In der Google Cloud Console (Google Auth Platform) einen OAuth-Client vom Typ «Webanwendung» erstellen, als
+   Weiterleitungs-URI `https://<projekt-id>.supabase.co/auth/v1/callback` eintragen, die Zielgruppe «Extern» (Testmodus mit
+   eingetragenen Testnutzern genügt) wählen. Client-ID und Client-Secret in Supabase unter
+   **Authentication → Sign In / Providers → Google** eintragen.
+3. Optional E-Mail-Code: In Supabase **Authentication → Emails** die Vorlage «Magic link» um `{{ .Token }}` ergänzen (setzt
+   einen eigenen SMTP-Dienst voraus, z. B. Brevo).
+
+### 4. GitHub-Secrets (Repo → Settings → Secrets and variables → Actions)
+
+| Secret                   | Wert                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | `https://<projekt-id>.supabase.co` (nur die Adresse, ohne Zusatz)                                                |
+| `VITE_SUPABASE_ANON_KEY` | Publishable Key (`sb_publishable_…`), **nie** den Secret Key                                                     |
+| `SUPABASE_ACCESS_TOKEN`  | Supabase → Account preferences → Access Tokens; beschränkt auf das Projekt, Berechtigung «Edge Functions: Write» |
+
+### 5. Edge Functions veröffentlichen
+
+Actions → **Edge Functions deployen** → _Run workflow_. Danach geschieht das bei jeder Änderung unter `supabase/functions`
+automatisch. Die Funktionen `calendar` (ICS-Feed) und `send-reminders` (Push) sind danach online; die Push-Schlüssel erzeugt
+`send-reminders` beim ersten Lauf selbst.
+
+### 6. iPhone
+
+In Safari die Seite öffnen → **Teilen → Zum Home-Bildschirm**, die App von dort starten, anmelden und unter
+**Einstellungen → Benachrichtigungen aktivieren** (Push funktioniert auf dem iPhone nur bei installierter App, ab iOS 16.4).
+Kalender: **Einstellungen → Kalender verbinden → In Apple Kalender abonnieren**.
+
+## Bedienung
+
+**Schnelleingabe** (Feld oben in «Heute», «Alle» und jeder Liste; unter dem Feld steht, was erkannt wurde):
+
+| Eingabe                                                                                                              | Bedeutung                   |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `heute`, `morgen`, `übermorgen`, `Freitag`, `nächsten Montag`, `in 3 Tagen`, `nächste Woche`, `Ende Monat`, `15.11.` | Datum                       |
+| `14 Uhr`, `14:30`, `um 9`                                                                                            | Uhrzeit                     |
+| `#Privat`, `#"Mein Haushalt"`                                                                                        | Liste                       |
+| `!hoch`, `!mittel`, `!tief`                                                                                          | Priorität                   |
+| `@Anna`, `@ich`                                                                                                      | Person (Mitglied der Liste) |
+| `+wichtig`                                                                                                           | Tag                         |
+| `jeden Tag`, `alle 2 Wochen`, `jeden Montag und Mittwoch`, `werktags`, `monatlich`, `3 Tage nach Erledigung`         | Wiederholung                |
+
+**PC:** `N` neue Pendenz · `/` Suche · `J`/`K` auswählen · `E` erledigen · `Enter` öffnen · `?` Übersicht.
+**iPhone:** Zeile nach rechts wischen = erledigt, nach links = «Morgen» oder löschen.
 
 ## Entwicklung
 
 ```bash
 npm install
-npm run dev      # lokal starten
-npm run lint && npm test && npm run build
-npm run test:e2e # Playwright-Tests (Supabase wird gemockt)
-npm run icons    # PNG-Icons aus public/icon.svg neu erzeugen
+npm run dev          # lokal starten (.env.example nach .env kopieren)
+npm run lint && npm run typecheck && npm test
+npm run test:e2e     # Playwright (Supabase wird nachgebildet); einmalig: npx playwright install chromium
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres supabase/tests/run.sh   # Datenbank-Tests
+npm run icons        # PNG-Icons aus public/icon.svg neu erzeugen
 ```
 
-## Deployment
+Tests: Vitest (Logik: Datums-Parser, Wiederholungen, ICS, Filter, Import/Export …), Playwright (Abläufe, Offline,
+Barrierefreiheit mit axe in Hell und Dunkel) und SQL-Tests der Zugriffsregeln, Trigger und Funktionen (laufen auch in der CI).
 
-Jeder Push auf `main` baut die App und veröffentlicht sie über GitHub Actions auf GitHub Pages.
-Einmalig nötig: Repository → **Settings → Pages → Source: GitHub Actions**.
+Struktur: `src/features/*` (Oberfläche je Funktion), `src/lib/*` (reine Logik und Datenzugriff), `src/sw.ts` (Service Worker),
+`supabase/migrations` (Datenbank), `supabase/functions` (Edge Functions), `supabase/tests`, `e2e/`.
 
-Die vollständige Einrichtungsanleitung (Supabase, Google-Login, Push) folgt in den nächsten Phasen.
+## Bekannte Grenzen
 
-## Einrichtung Supabase und Login (Phase 3)
-
-1. **Supabase-Projekt:** auf https://supabase.com ein neues Projekt erstellen (Region: Frankfurt/Zürich, Gratis-Plan).
-2. **Datenbank:** im Supabase-Dashboard → **SQL Editor** den Inhalt von
-   `supabase/migrations/20261022000001_core_schema.sql` einfügen und ausführen.
-3. **Schlüssel:** **Project Settings → API**: `Project URL` und `anon public`-Key kopieren.
-4. **GitHub-Secrets:** Repo → Settings → Secrets and variables → Actions → _New repository secret_:
-   `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY`.
-5. **Auth-URLs:** Supabase → **Authentication → URL Configuration**
-   - Site URL: `https://kenjinathor.github.io/Pendenzenliste/`
-   - Redirect URLs: `https://kenjinathor.github.io/Pendenzenliste/**` und `http://localhost:5173/**`
-6. **Google-Login:** Google Cloud Console → OAuth-Client (Webanwendung) erstellen, als Redirect-URI
-   `https://<PROJEKT-ID>.supabase.co/auth/v1/callback` eintragen; Client-ID und Secret in Supabase unter
-   **Authentication → Providers → Google** eintragen.
-7. **E-Mail-Code:** Supabase → **Authentication → Email Templates → Magic Link**: den Text um
-   `Dein Code: {{ .Token }}` ergänzen (so funktioniert die Anmeldung auch in der installierten iPhone-App).
-8. Deployment neu starten (Actions → _Deploy auf GitHub Pages_ → Run workflow).
-
-Tests der Zugriffsregeln: `supabase/tests/rls_smoketest.sql` (gegen eine lokale Postgres-Instanz mit Supabase-Stubs).
-
-## Kalender-Abo (Phase 5)
-
-Die App liefert einen persönlichen ICS-Feed (Edge Function `calendar`). Einrichtung:
-
-1. **Migration:** im Supabase **SQL Editor** den Inhalt von
-   `supabase/migrations/20261022000002_calendar_token_visible.sql` ausführen.
-2. **Zugriffs-Token:** Supabase → Konto-Symbol unten links → **Account preferences → Access Tokens →
-   Generate new token** (Name z. B. `github-deploy`). Den Token als GitHub-Secret `SUPABASE_ACCESS_TOKEN`
-   speichern (Repo → Settings → Secrets and variables → Actions).
-3. **Function veröffentlichen:** Actions → _Edge Functions deployen_ → **Run workflow**. Danach wird sie bei jeder
-   Änderung automatisch veröffentlicht.
-4. In der App: **Einstellungen → Kalender verbinden → Kalender-Link erzeugen**.
-
-Der Feed enthält alle offenen Pendenzen mit Fälligkeit aus den gewählten Listen (ganztägig oder mit Uhrzeit und
-Dauer, Notizen, Unteraufgaben, Rück-Link und Erinnerung). Auf demselben Link funktionieren auch Google Kalender und
-Outlook. Optional kann in Supabase (Edge Functions → Secrets) `APP_URL` gesetzt werden, falls sich die App-Adresse ändert.
-
-## Teilen und Zusammenarbeit (Phase 6)
-
-1. **Migration:** im Supabase **SQL Editor** den Inhalt von `supabase/migrations/20261023000003_sharing_realtime.sql`
-   ausführen (aktiviert Echtzeit-Updates und die Benachrichtigungen bei Zuweisung und @Erwähnung).
-2. Liste öffnen → **👥 Teilen**: Mitglieder sehen, Rollen setzen (Bearbeiter / Leser), Einladungslink erstellen.
-   Mit E-Mail-Adresse erhält die Person automatisch Zugriff, sobald sie sich mit dieser Adresse anmeldet.
-3. Pendenzen lassen sich Mitgliedern zuweisen («Mir zugewiesen»), kommentieren (`@Name` erwähnt jemanden) und der
-   Verlauf zeigt alle Änderungen. Änderungen erscheinen live auf allen Geräten.
-
-**Tests der Zugriffsregeln:** `supabase/tests/run.sh` führt alle Migrationen und `supabase/tests/rls.test.sql`
-gegen eine leere Postgres-Datenbank aus (läuft auch in der CI). Lokal z. B. mit
-`DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres supabase/tests/run.sh`.
-
-## Erinnerungen und Push (Phase 7)
-
-Ablauf: `pg_cron` ruft jede Minute die Edge Function `send-reminders` auf. Sie holt fällige Erinnerungen,
-Mitteilungen (Zuweisung, @Erwähnung) und Tageszusammenfassungen aus der Datenbank (SQL-Funktionen `claim_…`,
-jede Sendung wird höchstens einmal abgeholt) und verschickt sie per Web-Push. Die VAPID-Schlüssel erzeugt die
-Funktion beim ersten Lauf selbst; Schlüssel und Zeitplan-Geheimnis liegen in der Tabelle `app_config` (für App-Benutzer
-unlesbar, nur der öffentliche Schlüssel ist abrufbar).
-
-Einrichtung:
-
-1. **Migration:** im Supabase **SQL Editor** den Inhalt von `supabase/migrations/20261024000004_push_reminders.sql`
-   ausführen. Erscheint ein Hinweis, dass `pg_cron`/`pg_net` nicht aktiviert werden konnten, diese unter
-   **Integrations** (bzw. Database → Extensions) einschalten und die letzten Zeilen der Migration (Abschnitt
-   «Zeitplan») erneut ausführen.
-2. **Adresse eintragen:** im SQL Editor ausführen (eigene Projekt-Adresse einsetzen):
-   `select public.configure_push('https://<projekt-id>.supabase.co');`
-3. **Function veröffentlichen:** Actions → _Edge Functions deployen_ → Run workflow (läuft sonst automatisch bei
-   jeder Änderung unter `supabase/functions`).
-4. **In der App:** Einstellungen → _Benachrichtigungen aktivieren_ → _Test-Benachrichtigung senden_. Auf dem iPhone
-   muss die App zuvor zum Home-Bildschirm hinzugefügt sein (ab iOS 16.4).
-
-Kontrolle: `select jobname, schedule from cron.job;` zeigt den Zeitplan, `select * from cron.job_run_details order by
-start_time desc limit 5;` die letzten Läufe. Der Zeitplan räumt täglich auch den Papierkorb (30 Tage) auf.
-
-## Komfort-Funktionen, Teil 1 (Phase 8a)
-
-1. **Migration:** im Supabase **SQL Editor** den Inhalt von `supabase/migrations/20261025000005_recurring_tasks.sql`
-   ausführen (Funktionen zum Erledigen wiederkehrender Pendenzen).
-2. **Schnelleingabe in natürlicher Sprache** (Feld oben in «Heute», «Alle» und in jeder Liste). Unter dem Feld steht,
-   was erkannt wurde:
-
-   | Eingabe                                                                                                                    | Bedeutung                   |
-   | -------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-   | `heute`, `morgen`, `übermorgen`, `Freitag`, `nächsten Montag`, `in 3 Tagen`, `nächste Woche`, `Ende Monat`, `15.11.`       | Datum                       |
-   | `14 Uhr`, `14:30`, `um 9`                                                                                                  | Uhrzeit                     |
-   | `#Privat`, `#"Mein Haushalt"`                                                                                              | Liste                       |
-   | `!hoch`, `!mittel`, `!tief` (oder `!1 !2 !3`)                                                                              | Priorität                   |
-   | `@Anna`, `@ich`                                                                                                            | Person (Mitglied der Liste) |
-   | `+wichtig`                                                                                                                 | Tag                         |
-   | `jeden Tag`, `jede Woche`, `alle 2 Wochen`, `jeden Montag und Mittwoch`, `werktags`, `monatlich`, `3 Tage nach Erledigung` | Wiederholung                |
-
-   Beispiel: `Steuererklärung einreichen morgen 14 Uhr #Privat !hoch @Anna +wichtig`
-
-3. **Wiederkehrende Pendenzen:** Beim Abhaken entsteht automatisch die nächste Pendenz (Unteraufgaben zurückgesetzt,
-   Tags und Erinnerungen übernommen); «Rückgängig» macht beides rückgängig. Verpasste Termine werden übersprungen.
-4. **Tastenkürzel am PC:** `N` neue Pendenz, `/` Suche, `J`/`K` auswählen, `E` erledigen, `Enter` öffnen, `?` Übersicht.
-5. **Wischgesten auf dem iPhone:** Zeile nach rechts = erledigt, nach links = «Morgen» (verschieben) oder löschen.
-
-## Komfort-Funktionen, Teil 2 (Phase 8b) – keine Datenbank-Änderung nötig
-
-- **Filtern und Sortieren** («Alle» und jede Liste): nach Priorität, Status, Person, Tags und Listen; Sortierung nach
-  Fälligkeit, Priorität, Titel oder Erstelldatum. Ein Filter lässt sich als **Intelligente Liste** speichern (erscheint in
-  der Seitenleiste).
-- **Kanban** pro Liste (Umschalter «Liste / Kanban»): Spalten Offen, In Arbeit, Wartend, Erledigt. Karten ziehen (PC) oder
-  mit ◀ ▶ verschieben (Touch/Tastatur).
-- **Kalender** (Monat/Woche): Pendenzen auf einen anderen Tag ziehen (Uhrzeit bleibt), Tag antippen und Pendenz anlegen,
-  Schweizer Feiertage nach Kanton (Angaben ohne Gewähr).
-- **Meine 3 für heute:** mit ☆ bis zu drei Pendenzen als Tagesfokus markieren; sie stehen oben in «Heute».
-- **Statistik:** erledigte Pendenzen pro Woche, Überfälligkeitsquote, Serie.
-- **Einstellungen:** Name ändern, Darstellung Hell/Dunkel/System.
-
-## Komfort-Funktionen, Teil 3 (Phase 8c)
-
-**Einmalig im Supabase SQL Editor ausführen:** `supabase/migrations/20261026000006_offline_attachments.sql`
-(Zeitstempel pro Feld für die Synchronisierung und der private Speicher-Bucket für Anhänge, max. 5 MB pro Datei).
-Ohne diese Migration funktioniert das Speichern von Änderungen an Pendenzen nicht, weil die App sie über die neue
-Funktion `update_task_fields` überträgt.
-
-- **Offline-Betrieb:** Die App öffnet sich auch ohne Verbindung mit den zuletzt geladenen Daten (IndexedDB). Änderungen
-  an Pendenzen, Unteraufgaben, Tags und Erinnerungen werden vorgemerkt (Hinweis oben: «Offline – n Änderungen warten»)
-  und bei Verbindung automatisch übertragen – auch nach einem Neuladen. **Konfliktregel:** Pro Feld gewinnt die Änderung
-  mit dem neueren Zeitstempel der Bearbeitung (nicht der Übertragung). Nur mit Verbindung gehen: wiederkehrende Pendenzen
-  abhaken, Kommentare, Einladungen, Listen anlegen, Anhänge. Beim Abmelden wird der lokale Speicher geleert.
-- **Dateianhänge:** In einer Pendenz «📎 Datei» oder «📷 Foto aufnehmen» (Fotos und PDF, max. 5 MB; grosse Fotos werden
-  automatisch verkleinert). Zugriff haben nur Mitglieder der Liste. Hinweis: Beim endgültigen Löschen einer Pendenz
-  bleibt die Datei im Speicher liegen (sie ist dann nicht mehr abrufbar, belegt aber Platz im Gratis-Kontingent).
-- **Vorlagen:** Wiederverwendbare Pendenzen mit Unteraufgaben und Tags (Menü «Vorlagen»; in einer Pendenz «Als Vorlage
-  speichern»; beim Erstellen «Aus Vorlage …»).
-- **Import / Export:** Menü «Import & Export». Export als CSV (Excel, mit `;` getrennt) oder vollständiges Backup
-  (JSON inkl. Vorlagen und Intelligenten Listen). Import von CSV (Spaltennamen wie Titel, Fällig, Priorität, Liste, Tags;
-  auch deutsche/englische Varianten) oder einem Backup; fehlende Listen werden angelegt, höchstens 2000 Pendenzen pro Import.
+- Nur mit Internetverbindung: wiederkehrende Pendenzen abhaken, Kommentare, Einladungen, Listen anlegen, Anhänge.
+- Beim endgültigen Löschen einer Pendenz bleibt die Datei im Speicher liegen (nicht mehr abrufbar, belegt aber Platz).
+- Feiertage: nationale und Hauptfeiertage ausgewählter Kantone, ohne Gewähr; Halbtags- und Gemeindefeiertage fehlen.
+- Apple aktualisiert abonnierte Kalender mit Verzögerung (einstellbar unter iPhone-Einstellungen → Kalender → Accounts).

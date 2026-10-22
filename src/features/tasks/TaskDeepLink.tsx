@@ -45,5 +45,5 @@ export function TaskDeepLink() {
   }, [found, id, openTask, navigate]);
 
   if (tasks && !found) return <Navigate to="/heute" replace />;
-  return <p className="px-4 py-12 text-center text-slate-500">Lade …</p>;
+  return <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>;
 }

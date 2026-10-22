@@ -71,7 +71,7 @@ export function DataPage() {
       <div className="flex flex-col gap-4 px-4 pb-6">
         <section aria-label="Export" className={card}>
           <h2 className="mb-1 font-semibold">Exportieren</h2>
-          <p className="mb-3 text-sm text-slate-500">
+          <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
             {tasks.length} Pendenzen in {lists.length} Listen (ohne Papierkorb).
           </p>
           <div className="flex flex-col gap-2">
@@ -100,7 +100,7 @@ export function DataPage() {
 
         <section aria-label="Import" className={card}>
           <h2 className="mb-1 font-semibold">Importieren</h2>
-          <p className="mb-3 text-sm text-slate-500">
+          <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
             CSV mit Spalten wie Titel, Fällig, Priorität, Liste, Tags … (Excel, Todoist,
             Notizen-Apps) oder ein Backup aus dieser App.
           </p>
@@ -160,7 +160,7 @@ export function DataPage() {
                       ))}
                     </select>
                   </label>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
                     Listen, die es noch nicht gibt, werden neu angelegt. Importierte Pendenzen
                     werden hinzugefügt; vorhandene bleiben unverändert.
                   </p>

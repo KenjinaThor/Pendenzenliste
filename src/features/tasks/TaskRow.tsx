@@ -240,7 +240,7 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
           className="min-w-0 flex-1 text-left"
         >
           <span
-            className={`flex items-center gap-2 transition-all duration-300 ${checked ? 'text-slate-400 line-through' : ''}`}
+            className={`flex items-center gap-2 transition-all duration-300 ${checked ? 'text-slate-500 dark:text-slate-400 line-through' : ''}`}
           >
             <span
               className={`h-2 w-2 shrink-0 rounded-full ${PRIORITY_COLOR[task.priority]}`}
@@ -248,9 +248,9 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
             />
             <span className="truncate font-medium">{task.title}</span>
           </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-600 dark:text-slate-400">
             {task.due_at && (
-              <span className={overdue ? 'font-medium text-red-600' : ''}>
+              <span className={overdue ? 'font-medium text-red-600 dark:text-red-300' : ''}>
                 {formatDue(new Date(task.due_at), task.due_all_day, now)}
               </span>
             )}

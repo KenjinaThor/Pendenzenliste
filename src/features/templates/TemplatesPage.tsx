@@ -110,7 +110,7 @@ function TemplateEditor({ template, onClose }: { template: Template | null; onCl
 }
 
 export function TemplatesPage() {
-  const { data: templates = [], isLoading } = useTemplates();
+  const { data: templates = [], isPending } = useTemplates();
   const del = useDeleteTemplate();
   const { newTask } = useEditor();
   const [editing, setEditing] = useState<Template | 'new' | null>(null);
@@ -129,10 +129,10 @@ export function TemplatesPage() {
           </button>
         }
       />
-      {isLoading ? (
-        <p className="px-4 py-12 text-center text-slate-500">Lade …</p>
+      {isPending ? (
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>
       ) : templates.length === 0 ? (
-        <p className="px-4 py-12 text-center text-slate-500">
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">
           Noch keine Vorlagen. Lege eine an oder speichere eine Pendenz über «Als Vorlage
           speichern».
         </p>
@@ -141,7 +141,7 @@ export function TemplatesPage() {
           {templates.map((t) => (
             <li key={t.id} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800">
               <p className="font-medium">{t.name}</p>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 {t.payload.subtasks.length}{' '}
                 {t.payload.subtasks.length === 1 ? 'Unteraufgabe' : 'Unteraufgaben'}
                 {t.payload.tags.length > 0 && ` · ${t.payload.tags.map((x) => `#${x}`).join(' ')}`}
@@ -162,7 +162,7 @@ export function TemplatesPage() {
                 <button
                   onClick={() => window.confirm(`Vorlage «${t.name}» löschen?`) && del.mutate(t.id)}
                   aria-label={`Vorlage ${t.name} löschen`}
-                  className="h-10 rounded-xl px-3 text-sm font-medium text-red-700"
+                  className="h-10 rounded-xl px-3 text-sm font-medium text-red-700 dark:text-red-300"
                 >
                   Löschen
                 </button>

@@ -93,7 +93,7 @@ export function CalendarViewPage() {
         className={`w-full truncate rounded-md px-1.5 py-0.5 text-left text-xs ${t.priority === 'high' ? 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100' : 'bg-indigo-100 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100'}`}
       >
         {!t.due_all_day && t.due_at && (
-          <span className="opacity-70">{formatTime(new Date(t.due_at))} </span>
+          <span className="font-semibold">{formatTime(new Date(t.due_at))} </span>
         )}
         {t.title}
       </button>
@@ -183,7 +183,7 @@ export function CalendarViewPage() {
       <div className="px-2 md:px-4">
         {mode === 'month' && (
           <div
-            className="grid grid-cols-7 text-center text-xs font-semibold text-slate-500"
+            className="grid grid-cols-7 text-center text-xs font-semibold text-slate-600 dark:text-slate-400"
             aria-hidden
           >
             {WEEKDAY_HEAD.map((d) => (
@@ -210,7 +210,7 @@ export function CalendarViewPage() {
             return (
               <div
                 key={key}
-                role="gridcell"
+                role="group"
                 aria-label={`${day.getDate()}. ${MONTHS[day.getMonth()]}${holiday ? `, ${holiday}` : ''}, ${list.length} Pendenzen`}
                 onClick={() => setSelected(key)}
                 onDragOver={(e) => {
@@ -219,18 +219,28 @@ export function CalendarViewPage() {
                 }}
                 onDragLeave={() => setDragOver((k) => (k === key ? null : k))}
                 onDrop={(e) => drop(key, day, e)}
-                className={`flex min-h-24 cursor-pointer flex-col gap-1 p-1.5 ${mode === 'month' ? 'bg-white dark:bg-slate-800' : 'rounded-xl bg-white shadow-sm dark:bg-slate-800'} ${outside ? 'opacity-50' : ''} ${selected === key ? 'outline-2 -outline-offset-2 outline-indigo-500' : ''} ${dragOver === key ? 'bg-indigo-50 dark:bg-indigo-950' : ''}`}
+                className={`flex min-h-24 cursor-pointer flex-col gap-1 p-1.5 ${mode === 'month' ? (outside ? 'bg-slate-50 dark:bg-slate-900' : 'bg-white dark:bg-slate-800') : 'rounded-xl bg-white shadow-sm dark:bg-slate-800'}  ${selected === key ? 'outline-2 -outline-offset-2 outline-indigo-500' : ''} ${dragOver === key ? 'bg-indigo-50 dark:bg-indigo-950' : ''}`}
               >
                 <div className="flex items-start justify-between gap-1">
-                  <span
-                    className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold ${isToday ? 'bg-indigo-600 text-white' : ''}`}
+                  <button
+                    type="button"
+                    aria-pressed={selected === key}
+                    aria-label={`${mode === 'week' ? `${WEEKDAY_HEAD[(day.getDay() + 6) % 7]} ` : ''}${day.getDate()}. ${MONTHS[day.getMonth()]}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelected(key);
+                    }}
+                    className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold ${isToday ? 'bg-indigo-600 text-white' : outside ? 'text-slate-600 dark:text-slate-400' : ''}`}
                   >
                     {mode === 'week'
                       ? `${WEEKDAY_HEAD[(day.getDay() + 6) % 7]} ${day.getDate()}.`
                       : day.getDate()}
-                  </span>
+                  </button>
                   {holiday && (
-                    <span className="truncate text-[10px] font-medium text-red-600" title={holiday}>
+                    <span
+                      className="truncate text-[10px] font-medium text-red-600 dark:text-red-300"
+                      title={holiday}
+                    >
                       {holiday}
                     </span>
                   )}
@@ -238,7 +248,9 @@ export function CalendarViewPage() {
                 <ul className="flex flex-col gap-0.5">
                   {list.slice(0, limit).map(chip)}
                   {list.length > limit && (
-                    <li className="text-[11px] text-slate-500">+{list.length - limit} weitere</li>
+                    <li className="text-[11px] text-slate-600 dark:text-slate-400">
+                      +{list.length - limit} weitere
+                    </li>
                   )}
                 </ul>
               </div>
@@ -265,7 +277,7 @@ export function CalendarViewPage() {
             </button>
           </div>
           {selectedTasks.length === 0 ? (
-            <p className="text-sm text-slate-500">Nichts fällig.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Nichts fällig.</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {selectedTasks.map((t) => (
@@ -275,7 +287,9 @@ export function CalendarViewPage() {
                     className="w-full rounded-lg px-2 py-1.5 text-left active:bg-slate-100 dark:active:bg-slate-700"
                   >
                     {!t.due_all_day && t.due_at && (
-                      <span className="mr-2 text-slate-500">{formatTime(new Date(t.due_at))}</span>
+                      <span className="mr-2 text-slate-600 dark:text-slate-400">
+                        {formatTime(new Date(t.due_at))}
+                      </span>
                     )}
                     {t.title}
                   </button>

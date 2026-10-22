@@ -74,7 +74,9 @@ export function CommentsSection({
     <section aria-label="Kommentare" className="mt-6">
       <h3 className="mb-2 text-sm font-medium">
         Kommentare{' '}
-        {comments.length > 0 && <span className="text-slate-500">({comments.length})</span>}
+        {comments.length > 0 && (
+          <span className="text-slate-600 dark:text-slate-400">({comments.length})</span>
+        )}
       </h3>
       <ul className="flex flex-col gap-2">
         {comments.map((c) => (
@@ -90,7 +92,7 @@ export function CommentsSection({
               {c.author_id === userId && (
                 <button
                   aria-label="Kommentar löschen"
-                  className="text-slate-400"
+                  className="text-slate-500 dark:text-slate-400"
                   onClick={() => del.mutate({ id: c.id, taskId })}
                 >
                   ×
@@ -140,7 +142,7 @@ export function CommentsSection({
             </button>
           </div>
           {error && (
-            <p role="alert" className="mt-2 text-sm text-red-700">
+            <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">
               {error}
             </p>
           )}

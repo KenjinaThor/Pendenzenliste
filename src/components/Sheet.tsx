@@ -33,7 +33,7 @@ export function Sheet({
           <button
             aria-label="Schliessen"
             onClick={onClose}
-            className="h-9 w-9 rounded-full text-xl text-slate-500 active:bg-slate-100 dark:active:bg-slate-700"
+            className="h-9 w-9 rounded-full text-xl text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-slate-700"
           >
             ×
           </button>

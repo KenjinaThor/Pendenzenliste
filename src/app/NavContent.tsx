@@ -30,7 +30,7 @@ export function NavContent() {
             <span className="flex-1">{v.label}</span>
             {n > 0 && (
               <span
-                className={`text-sm ${v.key === 'ueberfaellig' ? 'font-semibold text-red-600' : 'text-slate-500'}`}
+                className={`text-sm ${v.key === 'ueberfaellig' ? 'font-semibold text-red-600 dark:text-red-300' : 'text-slate-600 dark:text-slate-400'}`}
               >
                 {n}
               </span>
@@ -38,7 +38,7 @@ export function NavContent() {
           </NavLink>
         );
       })}
-      <h2 className="mt-4 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <h2 className="mt-4 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
         Listen
       </h2>
       {lists.map((l) => (
@@ -48,14 +48,14 @@ export function NavContent() {
             {l.name}
             {perms.isShared(l.id) && <span aria-label="geteilt"> 👥</span>}
           </span>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-slate-600 dark:text-slate-400">
             {tasks.filter((t) => t.list_id === l.id && !isDone(t)).length || ''}
           </span>
         </NavLink>
       ))}
       {smartLists.length > 0 && (
         <>
-          <h2 className="mt-4 mb-1 px-3 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          <h2 className="mt-4 mb-1 px-3 text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-400 uppercase">
             Intelligente Listen
           </h2>
           {smartLists.map((s) => (

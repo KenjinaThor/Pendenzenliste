@@ -16,7 +16,7 @@ export function SmartListPage() {
 }
 
 function SmartList({ id }: { id: string | undefined }) {
-  const { data: saved = [], isLoading } = useSavedFilters();
+  const { data: saved = [], isPending } = useSavedFilters();
   const { data: tasks = [] } = useTasks();
   const { session } = useAuth();
   const options = useFilterOptions();
@@ -26,7 +26,8 @@ function SmartList({ id }: { id: string | undefined }) {
   const current = saved.find((s) => s.id === id);
   const [draft, setDraft] = useState<TaskFilter | null>(null);
 
-  if (isLoading) return <p className="px-4 py-12 text-center text-slate-500">Lade …</p>;
+  if (isPending)
+    return <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>;
   if (!current) return <Navigate to="/alle" replace />;
 
   const stored = normalizeFilter(current.filter as Partial<TaskFilter>);

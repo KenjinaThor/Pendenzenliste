@@ -45,7 +45,7 @@ export function SettingsPage() {
         )}
         <div>
           <p className="font-medium">{name}</p>
-          <p className="text-sm text-slate-500">{user?.email}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{user?.email}</p>
         </div>
       </div>
       <section
@@ -66,7 +66,9 @@ export function SettingsPage() {
             className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900"
           />
         </label>
-        <p className="mt-1 text-xs text-slate-500">So sehen dich andere in geteilten Listen.</p>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          So sehen dich andere in geteilten Listen.
+        </p>
         <div className="mt-4" role="group" aria-label="Darstellung">
           <p className="mb-2 text-sm font-medium">Darstellung</p>
           <div className="grid grid-cols-3 gap-2">
@@ -110,7 +112,7 @@ export function SettingsPage() {
       </button>
       <button
         onClick={deleteAccount}
-        className="mt-3 h-12 w-full rounded-xl border border-red-300 font-medium text-red-700"
+        className="mt-3 h-12 w-full rounded-xl border border-red-300 font-medium text-red-700 dark:text-red-300"
       >
         Konto und alle Daten löschen
       </button>

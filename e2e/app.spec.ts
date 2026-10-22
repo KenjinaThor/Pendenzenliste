@@ -658,12 +658,12 @@ test.describe('Kalenderansicht', () => {
 
   test('zeigt Pendenzen im Monat und wechselt zur Woche', async ({ page }) => {
     const cell = (day: number) =>
-      page.getByRole('gridcell', { name: new RegExp(`^${day}\\. `) }).first();
+      page.getByRole('group', { name: new RegExp(`^${day}\\. `) }).first();
     await expect(cell(15).getByText('Zahnarzt')).toBeVisible();
     await expect(cell(15).getByText('14:30')).toBeVisible();
     await expect(cell(16).getByText('Wäsche')).toBeVisible();
     await page.getByRole('button', { name: 'Woche' }).click();
-    await expect(page.getByRole('gridcell')).toHaveCount(7);
+    await expect(page.getByRole('group', { name: /Pendenzen$/ })).toHaveCount(7);
   });
 
   test('Feiertage des Kantons werden angezeigt', async ({ page }) => {
@@ -674,20 +674,18 @@ test.describe('Kalenderansicht', () => {
     ) {
       await page.getByRole('button', { name: 'Weiter' }).click();
     }
-    await expect(page.getByRole('gridcell', { name: /^25\. Dezember, Weihnachten/ })).toBeVisible();
-    await expect(page.getByRole('gridcell', { name: /^26\. Dezember, Stephanstag/ })).toBeVisible(); // SG
+    await expect(page.getByRole('group', { name: /^25\. Dezember, Weihnachten/ })).toBeVisible();
+    await expect(page.getByRole('group', { name: /^26\. Dezember, Stephanstag/ })).toBeVisible(); // SG
     await page.getByLabel('Kanton für Feiertage').selectOption('CH');
     await expect.poll(() => db.profile.canton).toBe('CH');
-    await expect(page.getByRole('gridcell', { name: /^26\. Dezember, Stephanstag/ })).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole('group', { name: /^26\. Dezember, Stephanstag/ })).toHaveCount(0);
     await page.getByLabel('Feiertage anzeigen').uncheck();
-    await expect(page.getByRole('gridcell', { name: /Weihnachten/ })).toHaveCount(0);
+    await expect(page.getByRole('group', { name: /Weihnachten/ })).toHaveCount(0);
   });
 
   test('Pendenz auf einen anderen Tag ziehen behält die Uhrzeit', async ({ page }) => {
     const cell = (day: number) =>
-      page.getByRole('gridcell', { name: new RegExp(`^${day}\\. `) }).first();
+      page.getByRole('group', { name: new RegExp(`^${day}\\. `) }).first();
     await cell(15).getByText('Zahnarzt').dragTo(cell(20));
     await expect
       .poll(() => new Date(db.tasks.find((t) => t.id === 'c1')!.due_at as string).getDate())
@@ -698,7 +696,7 @@ test.describe('Kalenderansicht', () => {
 
   test('Tag auswählen und Pendenz für diesen Tag anlegen', async ({ page }) => {
     await page
-      .getByRole('gridcell', { name: /^18\. / })
+      .getByRole('group', { name: /^18\. / })
       .first()
       .click();
     await page.getByRole('button', { name: '＋ Pendenz' }).click();
@@ -1114,4 +1112,18 @@ test.describe('Anhänge', () => {
     await expect(page.getByText('Anhänge brauchen eine Internetverbindung.')).toBeVisible();
     await context.setOffline(false);
   });
+});
+
+test('Speichern funktioniert auch, wenn die neue Datenbank-Funktion noch fehlt', async ({
+  page,
+}) => {
+  db.noUpdateFunction = true;
+  await page.getByLabel('Pendenz schnell erfassen').fill('Alt-Datenbank');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => db.tasks.length).toBe(1);
+  await page.getByText('Alt-Datenbank', { exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hoch', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect.poll(() => db.tasks[0].priority).toBe('high');
+  await expect(page.getByText(/Speichern fehlgeschlagen/)).toBeHidden();
 });

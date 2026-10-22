@@ -86,7 +86,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
         value={text}
         onChange={(e) => setText(e.target.value)}
         enterKeyHint="done"
-        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm placeholder:text-slate-400"
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm placeholder:text-slate-500"
       />
       {text.trim() && parsed.chips.length > 0 && (
         <ul aria-label="Erkannt" className="mt-2 flex flex-wrap gap-1.5 text-xs">
@@ -101,7 +101,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
         </ul>
       )}
       {text.trim() && !parsed.title && (
-        <p className="mt-2 text-xs text-amber-700">Es fehlt noch ein Titel.</p>
+        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Es fehlt noch ein Titel.</p>
       )}
     </form>
   );

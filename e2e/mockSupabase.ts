@@ -21,6 +21,8 @@ export async function mockSupabase(page: Page) {
     rpcCalls: { name: string; args: unknown }[];
     /** true = alle Anfragen schlagen fehl (Verbindung getrennt) */
     offline: boolean;
+    /** true = Datenbank-Funktion update_task_fields fehlt (Migration nicht ausgeführt) */
+    noUpdateFunction: boolean;
     reminders: Row[];
     savedFilters: Row[];
     templates: Row[];
@@ -42,6 +44,7 @@ export async function mockSupabase(page: Page) {
     activity: [],
     rpcCalls: [],
     offline: false,
+    noUpdateFunction: false,
     reminders: [],
     savedFilters: [],
     templates: [],
@@ -126,6 +129,13 @@ export async function mockSupabase(page: Page) {
           route,
           'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
         );
+      if (name === 'update_task_fields' && db.noUpdateFunction) {
+        return json(
+          route,
+          { code: 'PGRST202', message: 'Could not find the function public.update_task_fields' },
+          404,
+        );
+      }
       if (name === 'update_task_fields') {
         const task = db.tasks.find((t) => t.id === body.p_task);
         if (!task) return json(route, { message: 'Keine Berechtigung', code: 'P0001' }, 400);

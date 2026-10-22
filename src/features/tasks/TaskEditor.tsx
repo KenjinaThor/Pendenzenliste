@@ -315,7 +315,7 @@ export function TaskEditor({
                 className={`${field} w-32 disabled:opacity-50`}
               />
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               Ohne Uhrzeit ist die Pendenz ganztägig fällig.
             </p>
             {time && (
@@ -432,7 +432,7 @@ export function TaskEditor({
             <p className="mb-2 text-sm font-medium">
               Unteraufgaben{' '}
               {subtasks.length > 0 && (
-                <span className="text-slate-500">
+                <span className="text-slate-600 dark:text-slate-400">
                   ({doneCount}/{subtasks.length})
                 </span>
               )}
@@ -461,13 +461,15 @@ export function TaskEditor({
                       })
                     }
                   />
-                  <span className={`flex-1 ${s.done ? 'text-slate-400 line-through' : ''}`}>
+                  <span
+                    className={`flex-1 ${s.done ? 'text-slate-500 dark:text-slate-400 line-through' : ''}`}
+                  >
                     {s.title}
                   </span>
                   <button
                     type="button"
                     aria-label={`Unteraufgabe ${s.title} löschen`}
-                    className="h-9 w-9 text-slate-400"
+                    className="h-9 w-9 text-slate-500 dark:text-slate-400"
                     onClick={() => deleteSubtask.mutate({ id: s.id, taskId: s.task_id })}
                   >
                     ×
@@ -481,7 +483,7 @@ export function TaskEditor({
                   <button
                     type="button"
                     aria-label={`Unteraufgabe ${t} entfernen`}
-                    className="h-9 w-9 text-slate-400"
+                    className="h-9 w-9 text-slate-500 dark:text-slate-400"
                     onClick={() => setDraftSubtasks((d) => d.filter((_, j) => j !== i))}
                   >
                     ×
@@ -548,7 +550,7 @@ export function TaskEditor({
           <button
             type="button"
             onClick={onTrash}
-            className="h-12 rounded-xl border border-red-300 font-medium text-red-700"
+            className="h-12 rounded-xl border border-red-300 font-medium text-red-700 dark:text-red-300"
           >
             In den Papierkorb
           </button>

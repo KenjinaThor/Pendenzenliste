@@ -5,7 +5,7 @@ import { useMarkNotificationsRead, useNotifications } from '../../lib/api';
 import { notificationText } from '../../../supabase/functions/_shared/texts.ts';
 
 export function NotificationsPage() {
-  const { data: items = [], isLoading } = useNotifications();
+  const { data: items = [], isPending } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const hasUnread = items.some((n) => !n.read_at);
 
@@ -20,10 +20,12 @@ export function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="🔔 Mitteilungen" />
-      {isLoading ? (
-        <p className="px-4 py-12 text-center text-slate-500">Lade …</p>
+      {isPending ? (
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">Lade …</p>
       ) : items.length === 0 ? (
-        <p className="px-4 py-12 text-center text-slate-500">Keine Mitteilungen.</p>
+        <p className="px-4 py-12 text-center text-slate-600 dark:text-slate-400">
+          Keine Mitteilungen.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2 px-4 pb-4">
           {items.map((n) => (
@@ -34,11 +36,11 @@ export function NotificationsPage() {
               >
                 <span className="block font-medium">{notificationText(n)}</span>
                 {n.payload.excerpt && (
-                  <span className="mt-0.5 block truncate text-sm text-slate-500">
+                  <span className="mt-0.5 block truncate text-sm text-slate-600 dark:text-slate-400">
                     {n.payload.excerpt}
                   </span>
                 )}
-                <span className="mt-0.5 block text-xs text-slate-500">
+                <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">
                   {new Date(n.created_at).toLocaleString('de-CH')}
                 </span>
               </Link>

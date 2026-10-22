@@ -13,7 +13,7 @@ export function PageHeader({
     <header className="flex items-end justify-between gap-3 px-4 pt-5 pb-3">
       <div className="min-w-0">
         <h1 className="truncate text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>}
       </div>
       {action}
     </header>
