@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizeSupabaseUrl } from './supabaseUrl';
 
-const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
+const url = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
 
 /** true, sobald gültige öffentliche Supabase-Werte gesetzt sind (siehe .env.example). */
-export const isSupabaseConfigured = Boolean(url && /^https?:\/\//.test(url) && anonKey);
+export const isSupabaseConfigured = Boolean(url && anonKey);
 
 /** Öffentlicher Schlüssel (Publishable/anon Key). */
 export const supabaseKey = anonKey ?? '';
