@@ -47,11 +47,22 @@ export function TaskEditor({
   const [date, setDate] = useState(due ? toDateInput(due) : (defaults?.date ?? ''));
   const [time, setTime] = useState(due && !existing?.due_all_day ? toTimeInput(due) : '');
   const [duration, setDuration] = useState<number | ''>(existing?.duration_min ?? '');
+  // «Eigene Dauer»: Eingabe in Stunden und Minuten (auch für bereits gespeicherte Sonderwerte)
+  const [customDuration, setCustomDuration] = useState(
+    existing?.duration_min != null && !DURATIONS.includes(existing.duration_min),
+  );
   const [priority, setPriority] = useState<Priority>(existing?.priority ?? 'medium');
   const [status, setStatus] = useState<Status>(existing?.status ?? 'open');
   const [draftSubtasks, setDraftSubtasks] = useState<string[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const minutesPart = (d: number | '') => (d === '' ? 0 : d % 60);
+  function setCustomParts(hours: number, minutes: number) {
+    const total =
+      Math.max(0, Math.min(99, hours || 0)) * 60 + Math.max(0, Math.min(59, minutes || 0));
+    setDuration(total > 0 ? total : '');
+  }
 
   const today = new Date();
   const setQuickDate = (d: Date | null) => setDate(d ? toDateInput(d) : '');
@@ -196,21 +207,59 @@ export function TaskEditor({
             Ohne Uhrzeit ist die Pendenz ganztägig fällig.
           </p>
           {time && (
-            <label className="mt-2 flex flex-col gap-1 text-sm font-medium">
-              Dauer
-              <select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
-                className={field}
-              >
-                <option value="">Keine Angabe</option>
-                {DURATIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {m >= 60 && m % 60 === 0 ? `${m / 60} Std.` : `${m} Min.`}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="mt-2 flex flex-col gap-2">
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Dauer
+                <select
+                  aria-label="Dauer"
+                  value={customDuration ? 'custom' : duration}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCustomDuration(v === 'custom');
+                    if (v !== 'custom') setDuration(v ? Number(v) : '');
+                  }}
+                  className={field}
+                >
+                  <option value="">Keine Angabe</option>
+                  {DURATIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m >= 60 && m % 60 === 0 ? `${m / 60} Std.` : `${m} Min.`}
+                    </option>
+                  ))}
+                  <option value="custom">Eigene Dauer …</option>
+                </select>
+              </label>
+              {customDuration && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={99}
+                    aria-label="Dauer in Stunden"
+                    value={duration === '' ? '' : Math.floor(duration / 60)}
+                    onChange={(e) => setCustomParts(Number(e.target.value), minutesPart(duration))}
+                    placeholder="0"
+                    className={`${field} w-20 text-center`}
+                  />
+                  <span className="text-sm">Std.</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={59}
+                    aria-label="Dauer in Minuten"
+                    value={duration === '' ? '' : duration % 60}
+                    onChange={(e) =>
+                      setCustomParts(Math.floor(Number(duration || 0) / 60), Number(e.target.value))
+                    }
+                    placeholder="0"
+                    className={`${field} w-20 text-center`}
+                  />
+                  <span className="text-sm">Min.</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

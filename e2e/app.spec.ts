@@ -57,3 +57,22 @@ test('neue Liste anlegen', async ({ page }) => {
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByRole('heading', { name: /Ferien/ })).toBeVisible();
 });
+
+test('eigene Dauer erfassen und wieder anzeigen', async ({ page }) => {
+  await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Titel').fill('Sitzung');
+  await dialog.getByRole('button', { name: 'Morgen' }).click();
+  await dialog.getByLabel('Uhrzeit (optional)').fill('09:30');
+  await dialog.getByLabel('Dauer', { exact: true }).selectOption('custom');
+  await dialog.getByLabel('Dauer in Stunden').fill('1');
+  await dialog.getByLabel('Dauer in Minuten').fill('20');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+
+  await page.goto('/Pendenzenliste/#/demnaechst');
+  await page.getByText('Sitzung').click();
+  const edit = page.getByRole('dialog');
+  await expect(edit.getByLabel('Dauer', { exact: true })).toHaveValue('custom');
+  await expect(edit.getByLabel('Dauer in Stunden')).toHaveValue('1');
+  await expect(edit.getByLabel('Dauer in Minuten')).toHaveValue('20');
+});
