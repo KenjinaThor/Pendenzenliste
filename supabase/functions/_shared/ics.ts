@@ -161,8 +161,8 @@ export function buildIcs(tasks: IcsTask[], opts: IcsOptions): string {
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(name)}`,
     `X-WR-TIMEZONE:${opts.timezone}`,
-    'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
-    'X-PUBLISHED-TTL:PT1H',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
+    'X-PUBLISHED-TTL:PT15M',
     ...tasks.filter((t) => t.due_at).flatMap((t) => buildEvent(t, opts, stamp)),
     'END:VCALENDAR',
   ];

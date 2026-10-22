@@ -48,7 +48,7 @@ export async function handleFeedRequest(
     headers: {
       'content-type': 'text/calendar; charset=utf-8',
       'content-disposition': 'inline; filename="pendenzen.ics"',
-      'cache-control': 'private, max-age=300',
+      'cache-control': 'private, max-age=60',
     },
   });
 }
