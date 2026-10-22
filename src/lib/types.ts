@@ -105,9 +105,25 @@ export interface ActivityEntry {
 
 export interface AppNotification {
   id: string;
-  kind: 'assigned' | 'mention';
+  kind: 'assigned' | 'mention' | 'test';
   task_id: string | null;
   payload: { task_title?: string; actor_name?: string; excerpt?: string };
   read_at: string | null;
   created_at: string;
+}
+
+export interface Reminder {
+  id: string;
+  task_id: string;
+  offset_min: number | null;
+  at: string | null;
+  fire_at: string | null;
+  sent_at: string | null;
+}
+
+export interface MyProfile {
+  id: string;
+  name: string;
+  timezone: string;
+  daily_digest_time: string | null;
 }

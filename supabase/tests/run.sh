@@ -11,9 +11,13 @@ for f in supabase/migrations/*.sql; do
   echo "Migration: $f"
   psql -f "$f"
 done
-if ! out=$(psql -f supabase/tests/rls.test.sql 2>&1); then
-  echo "$out" | grep -E "FEHLGESCHLAGEN|ERROR|DETAIL|CONTEXT" || echo "$out"
-  exit 1
-fi
-echo "$out" | grep "ok - "
+psql -f supabase/tests/helpers.sql
+for t in supabase/tests/*.test.sql; do
+  echo "== $t"
+  if ! out=$(psql -f "$t" 2>&1); then
+    echo "$out" | grep -E "FEHLGESCHLAGEN|ERROR|DETAIL|CONTEXT" || echo "$out"
+    exit 1
+  fi
+  echo "$out" | grep "ok - "
+done
 echo "Alle Tests bestanden."

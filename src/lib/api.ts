@@ -6,6 +6,8 @@ import type {
   Comment,
   Invite,
   Member,
+  MyProfile,
+  Reminder,
   Priority,
   Role,
   Status,
@@ -565,3 +567,84 @@ export function useMarkNotificationsRead() {
 }
 
 export const queryKeys = { ...keys, ...sharingKeys };
+
+// ---------------------------------------------------------------- Erinnerungen und Profil
+export function useReminders(taskId: string | undefined) {
+  return useQuery({
+    queryKey: ['reminders', taskId ?? ''],
+    enabled: Boolean(taskId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('reminders')
+        .select('id, task_id, offset_min, at, fire_at, sent_at')
+        .eq('task_id', taskId!)
+        .order('fire_at');
+      if (error) throw error;
+      return data as Reminder[];
+    },
+  });
+}
+
+export interface ReminderInput {
+  offset_min?: number;
+  at?: string;
+}
+
+export function useAddReminders() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, items }: { taskId: string; items: ReminderInput[] }) => {
+      const rows = items.map((i) => ({ task_id: taskId, ...i }));
+      const { error } = await supabase.from('reminders').insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: (_v, { taskId }) => qc.invalidateQueries({ queryKey: ['reminders', taskId] }),
+  });
+}
+
+export function useDeleteReminder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; taskId: string }) => {
+      const { error } = await supabase.from('reminders').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_v, { taskId }) => qc.invalidateQueries({ queryKey: ['reminders', taskId] }),
+  });
+}
+
+export function useMyProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['profile', userId ?? ''],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, timezone, daily_digest_time')
+        .eq('id', userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as MyProfile | null;
+    },
+  });
+}
+
+export function useUpdateProfile(userId: string | undefined) {
+  const qc = useQueryClient();
+  const key = ['profile', userId ?? ''];
+  return useMutation({
+    mutationFn: async (patch: Partial<Pick<MyProfile, 'timezone' | 'daily_digest_time'>>) => {
+      const { error } = await supabase.from('profiles').update(patch).eq('id', userId!);
+      if (error) throw error;
+    },
+    // Anzeige sofort ändern, bei einem Fehler zurücksetzen
+    onMutate: async (patch) => {
+      const previous = qc.getQueryData<MyProfile | null>(key);
+      qc.setQueryData<MyProfile | null>(key, (old) => (old ? { ...old, ...patch } : old));
+      await qc.cancelQueries({ queryKey: key }); // laufende Abfragen mit altem Stand verwerfen
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(key, ctx?.previous),
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+}

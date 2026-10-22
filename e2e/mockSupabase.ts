@@ -19,6 +19,9 @@ export async function mockSupabase(page: Page) {
     notifications: Row[];
     activity: Row[];
     rpcCalls: { name: string; args: unknown }[];
+    reminders: Row[];
+    pushSubscriptions: Row[];
+    profile: Row;
   } = {
     lists: [],
     tasks: [],
@@ -30,6 +33,16 @@ export async function mockSupabase(page: Page) {
     notifications: [],
     activity: [],
     rpcCalls: [],
+    reminders: [],
+    pushSubscriptions: [],
+    profile: {
+      id: 'user-1',
+      name: 'Anna',
+      avatar_url: null,
+      email: 'a@x.ch',
+      timezone: 'Europe/Zurich',
+      daily_digest_time: null,
+    },
   };
   const me = { id: 'user-1', name: 'Anna', avatar_url: null, email: 'a@x.ch' };
   let counter = 0;
@@ -77,6 +90,11 @@ export async function mockSupabase(page: Page) {
         });
         return json(route, token);
       }
+      if (name === 'get_vapid_public_key')
+        return json(
+          route,
+          'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
+        );
       if (name === 'accept_invite') return json(route, db.lists[0]?.id ?? 'id-1');
       return json(route, 0);
     }
@@ -90,7 +108,47 @@ export async function mockSupabase(page: Page) {
       }));
       return json(route, [...own, ...db.extraMembers]);
     }
-    if (table === 'profiles') return json(route, single ? me : [me]);
+    if (table === 'profiles') {
+      if (req.method() === 'PATCH') {
+        Object.assign(db.profile, body);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+      return json(route, single ? db.profile : [db.profile]);
+    }
+    if (table === 'reminders') {
+      const task = url.searchParams.get('task_id')?.replace('eq.', '');
+      if (req.method() === 'GET')
+        return json(
+          route,
+          db.reminders.filter((r) => r.task_id === task),
+        );
+      if (req.method() === 'POST') {
+        const rows = (Array.isArray(body) ? body : [body]).map((r: Row) => ({
+          id: newId(),
+          offset_min: null,
+          at: null,
+          sent_at: null,
+          fire_at: now,
+          ...r,
+        }));
+        db.reminders.push(...rows);
+        return route.fulfill({ status: 201, headers: cors });
+      }
+      if (req.method() === 'DELETE') {
+        db.reminders = db.reminders.filter((r) => r.id !== eq);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
+    if (table === 'push_subscriptions') {
+      if (req.method() === 'POST') {
+        db.pushSubscriptions.push(body);
+        return route.fulfill({ status: 201, headers: cors });
+      }
+      if (req.method() === 'DELETE') {
+        db.pushSubscriptions = [];
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
     if (table === 'notifications') return json(route, db.notifications);
     if (table === 'list_invites') {
       if (req.method() === 'DELETE') {

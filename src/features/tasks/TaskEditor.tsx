@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Sheet } from '../../components/Sheet';
 import { useSnackbar } from '../../components/Snackbar';
 import {
+  useAddReminders,
   useAddSubtasks,
   useCreateTask,
   useDeleteSubtask,
@@ -10,6 +11,7 @@ import {
   useTrashTask,
   useUpdateSubtask,
   useUpdateTask,
+  type ReminderInput,
 } from '../../lib/api';
 import { addDays, buildDue, nextMonday, toDateInput, toTimeInput } from '../../lib/dates';
 import { downloadTaskIcs } from '../../lib/singleIcs';
@@ -17,6 +19,7 @@ import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../
 import { usePermissions } from '../sharing/usePermissions';
 import { ActivitySection } from './ActivitySection';
 import { CommentsSection } from './CommentsSection';
+import { RemindersSection } from './RemindersSection';
 import type { NewTaskDefaults } from './EditorContext';
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
@@ -38,6 +41,8 @@ export function TaskEditor({
   const update = useUpdateTask();
   const trash = useTrashTask();
   const addSubtasks = useAddSubtasks();
+  const addReminders = useAddReminders();
+  const [draftReminders, setDraftReminders] = useState<ReminderInput[]>([]);
   const updateSubtask = useUpdateSubtask();
   const deleteSubtask = useDeleteSubtask();
   const snackbar = useSnackbar();
@@ -105,6 +110,8 @@ export function TaskEditor({
         });
       } else {
         const task = await create.mutateAsync(values);
+        if (draftReminders.length)
+          await addReminders.mutateAsync({ taskId: task.id, items: draftReminders });
         const pending = newSubtask.trim() ? [...draftSubtasks, newSubtask.trim()] : draftSubtasks;
         if (pending.length)
           await addSubtasks.mutateAsync({ taskId: task.id, titles: pending, start: 0 });
@@ -306,6 +313,14 @@ export function TaskEditor({
               </div>
             )}
           </div>
+
+          <RemindersSection
+            taskId={existing?.id ?? null}
+            hasDue={Boolean(date)}
+            allDay={!time}
+            drafts={draftReminders}
+            onDraftsChange={setDraftReminders}
+          />
 
           <div>
             <p className="mb-2 text-sm font-medium">Priorität</p>

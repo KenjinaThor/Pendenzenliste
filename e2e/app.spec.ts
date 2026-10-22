@@ -253,3 +253,82 @@ test('Mitteilungen werden angezeigt', async ({ page }) => {
   await expect(page.getByText('Ben hat dich in «Steuern» erwähnt')).toBeVisible();
   await expect(page.getByText('Schaust du das an?')).toBeVisible();
 });
+
+test('Erinnerungen bei einer Pendenz hinzufügen und entfernen', async ({ page }) => {
+  await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Titel').fill('Zahnarzttermin');
+  const reminders = dialog.getByRole('region', { name: 'Erinnerungen' });
+  await dialog.getByRole('button', { name: 'Kein Datum' }).click();
+  await expect(reminders.getByLabel('Erinnerung hinzufügen')).toBeDisabled(); // ohne Datum nicht möglich
+  await dialog.getByRole('button', { name: 'Morgen' }).click();
+  await dialog.getByLabel('Uhrzeit (optional)').fill('14:30');
+  await reminders.getByLabel('Erinnerung hinzufügen').selectOption({ label: '15 Min. vorher' });
+  await reminders.getByLabel('Erinnerung hinzufügen').selectOption({ label: '1 Tag vorher' });
+  await expect(reminders.getByText('🔔 15 Min. vorher')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  expect(db.reminders.map((r) => r.offset_min).sort((a, b) => Number(a) - Number(b))).toEqual([
+    15, 1440,
+  ]);
+
+  await page.goto('/Pendenzenliste/#/demnaechst');
+  await page.getByText('Zahnarzttermin').click();
+  const edit = page.getByRole('dialog').getByRole('region', { name: 'Erinnerungen' });
+  await expect(edit.getByText('🔔 1 Tag vorher')).toBeVisible();
+  await edit.getByRole('button', { name: /1 Tag vorher entfernen/ }).click();
+  await expect(edit.getByText('🔔 1 Tag vorher')).toBeHidden();
+  expect(db.reminders).toHaveLength(1);
+});
+
+test.describe('Push-Einstellungen', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      // Push-Dienst des Browsers durch einen Ersatz austauschen (keine Verbindung zu Google/Apple nötig)
+      let sub: unknown = null;
+      const endpoint = 'https://push.example/endpoint-1';
+      Object.defineProperty(PushManager.prototype, 'getSubscription', { value: async () => sub });
+      Object.defineProperty(PushManager.prototype, 'subscribe', {
+        value: async () => {
+          sub = {
+            endpoint,
+            toJSON: () => ({ endpoint, keys: { p256dh: 'P', auth: 'A' } }),
+            unsubscribe: async () => ((sub = null), true),
+          };
+          return sub;
+        },
+      });
+      Notification.requestPermission = async () => 'granted';
+    });
+    await page.reload();
+    await page.goto('/Pendenzenliste/#/einstellungen');
+  });
+
+  test('aktivieren, testen und ausschalten', async ({ page }) => {
+    await page.getByRole('button', { name: 'Benachrichtigungen aktivieren' }).click();
+    await expect(page.getByText('✓ Auf diesem Gerät aktiv')).toBeVisible();
+    expect(db.pushSubscriptions[0]).toMatchObject({
+      endpoint: 'https://push.example/endpoint-1',
+      p256dh: 'P',
+      auth: 'A',
+    });
+
+    await page.getByRole('button', { name: 'Test-Benachrichtigung senden' }).click();
+    await expect(page.getByText(/Test gesendet/)).toBeVisible();
+    expect(db.rpcCalls.some((c) => c.name === 'send_test_notification')).toBe(true);
+
+    await page.getByRole('button', { name: 'Auf diesem Gerät ausschalten' }).click();
+    await expect(page.getByRole('button', { name: 'Benachrichtigungen aktivieren' })).toBeVisible();
+    expect(db.pushSubscriptions).toHaveLength(0);
+  });
+
+  test('Tageszusammenfassung und Zeitzone speichern', async ({ page }) => {
+    await page.getByRole('checkbox', { name: /Jeden Tag eine Übersicht/ }).check();
+    await expect(page.getByLabel('Uhrzeit', { exact: true })).toHaveValue('07:30');
+    expect(db.profile.daily_digest_time).toBe('07:30');
+    await page.getByLabel('Uhrzeit', { exact: true }).fill('06:45');
+    await expect.poll(() => db.profile.daily_digest_time).toBe('06:45');
+    await page.getByLabel('Zeitzone').selectOption('Europe/London');
+    await expect.poll(() => db.profile.timezone).toBe('Europe/London');
+  });
+});

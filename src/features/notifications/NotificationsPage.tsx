@@ -2,15 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { useMarkNotificationsRead, useNotifications } from '../../lib/api';
-import type { AppNotification } from '../../lib/types';
-
-export function notificationText(n: AppNotification): string {
-  const who = n.payload.actor_name ?? 'Jemand';
-  const title = n.payload.task_title ?? 'eine Pendenz';
-  return n.kind === 'assigned'
-    ? `${who} hat dir «${title}» zugewiesen`
-    : `${who} hat dich in «${title}» erwähnt`;
-}
+import { notificationText } from '../../../supabase/functions/_shared/texts.ts';
 
 export function NotificationsPage() {
   const { data: items = [], isLoading } = useNotifications();

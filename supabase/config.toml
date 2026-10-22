@@ -4,3 +4,7 @@ project_id = "pendenzen"
 [functions.calendar]
 # Kalender-Apps können keinen Login mitschicken; der Zugriff läuft über den geheimen Token in der URL
 verify_jwt = false
+
+[functions.send-reminders]
+# Aufruf durch pg_cron; abgesichert über den geheimen Header x-cron-secret
+verify_jwt = false

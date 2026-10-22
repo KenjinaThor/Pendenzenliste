@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
+import { PushSettings } from './PushSettings';
 
 export function SettingsPage() {
   const { session } = useAuth();
@@ -40,6 +41,7 @@ export function SettingsPage() {
           <p className="text-sm text-slate-500">{user?.email}</p>
         </div>
       </div>
+      <PushSettings />
       <a
         href="#/kalender"
         className="mt-4 flex h-12 items-center justify-center rounded-xl bg-indigo-100 font-medium text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100"
