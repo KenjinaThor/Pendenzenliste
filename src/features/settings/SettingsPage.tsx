@@ -121,6 +121,10 @@ export function SettingsPage() {
           {error}
         </p>
       )}
+      <p className="mt-6 text-center text-xs text-slate-600 dark:text-slate-400">
+        Version vom {new Date(__BUILD_TIME__).toLocaleString('de-CH')} · Updates werden automatisch
+        übernommen
+      </p>
     </section>
   );
 }

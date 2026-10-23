@@ -9,6 +9,7 @@ const base = process.env.VITE_BASE ?? (repo ? `/${repo}/` : '/');
 
 export default defineConfig({
   base,
+  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     react(),
     VitePWA({
@@ -16,6 +17,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
+      injectRegister: false, // Registrierung und Update-Prüfung übernimmt src/lib/updates.ts
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         globIgnores: ['ocr/**'],
