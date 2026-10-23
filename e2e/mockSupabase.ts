@@ -19,6 +19,8 @@ export async function mockSupabase(page: Page) {
     notifications: Row[];
     activity: Row[];
     rpcCalls: { name: string; args: unknown }[];
+    /** Antwort der Funktion «scan-document»; undefined = KI nicht eingerichtet (503) */
+    scanAi?: { appointments: { title: string; date: string; time: string | null; note: string }[] };
     /** true = alle Anfragen schlagen fehl (Verbindung getrennt) */
     offline: boolean;
     /** true = Datenbank-Funktion update_task_fields fehlt (Migration nicht ausgeführt) */
@@ -103,6 +105,17 @@ export async function mockSupabase(page: Page) {
       }
     })();
     const now = new Date().toISOString();
+
+    if (url.pathname.endsWith('/functions/v1/scan-document')) {
+      return db.scanAi
+        ? json(route, db.scanAi)
+        : route.fulfill({
+            status: 503,
+            headers: cors,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'KI nicht eingerichtet', code: 'not_configured' }),
+          });
+    }
 
     if (url.pathname.endsWith('/rpc/rotate_calendar_token')) {
       const token = (++counter).toString(16).padStart(64, 'c');

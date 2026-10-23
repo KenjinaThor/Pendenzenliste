@@ -27,6 +27,6 @@ jobs:
           fi
           # Projekt-ID aus der Supabase-URL ableiten: https://<ID>.supabase.co
           REF=$(echo "$SUPABASE_URL" | sed -E 's#^https?://([^.]+)\..*#\1#')
-          for fn in calendar send-reminders; do
+          for fn in calendar send-reminders scan-document; do
             supabase functions deploy "$fn" --project-ref "$REF" --no-verify-jwt --use-api
           done

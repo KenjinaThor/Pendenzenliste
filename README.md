@@ -103,6 +103,16 @@ Actions → **Edge Functions deployen** → _Run workflow_. Danach geschieht das
 automatisch. Die Funktionen `calendar` (ICS-Feed) und `send-reminders` (Push) sind danach online; die Push-Schlüssel erzeugt
 `send-reminders` beim ersten Lauf selbst.
 
+### 5b. KI für «Dokument scannen» (optional)
+
+Ohne KI liest die App Fotos mit einer einfachen Texterkennung im Gerät. Besser ist das kostenlose Gemini-Modell von Google:
+
+1. Auf <https://aistudio.google.com/apikey> mit dem Google-Konto anmelden, **Create API key** wählen und den Schlüssel kopieren.
+2. Supabase → **Edge Functions** → **Secrets** → **Add new secret**: Name `GEMINI_API_KEY`, Wert = der Schlüssel.
+3. Optional: Secret `GEMINI_MODEL` (Standard `gemini-2.5-flash`), falls Google das Modell umbenennt.
+
+Der Schlüssel liegt nur in Supabase, nie in der App. Im Gratis-Kontingent darf Google die gesendeten Bilder zur Verbesserung seiner Produkte nutzen – keine sensiblen Dokumente scannen.
+
 ### 6. iPhone
 
 In Safari die Seite öffnen → **Teilen → Zum Home-Bildschirm**, die App von dort starten, anmelden und unter

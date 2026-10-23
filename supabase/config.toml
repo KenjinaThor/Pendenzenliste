@@ -8,3 +8,7 @@ verify_jwt = false
 [functions.send-reminders]
 # Aufruf durch pg_cron; abgesichert über den geheimen Header x-cron-secret
 verify_jwt = false
+
+[functions.scan-document]
+# Das Login-Token prüft die Funktion selbst (CORS-Vorabanfragen des Browsers tragen keines)
+verify_jwt = false

@@ -4,6 +4,7 @@ import { useCreateTask } from '../../lib/api';
 import { buildDue } from '../../lib/dates';
 import { findAppointments, type FoundAppointment } from '../../lib/docScan';
 import { recognizeText } from '../../lib/ocr';
+import { ScanAiError, scanWithAi } from '../../lib/scanAi';
 
 const STATUS_DE: Record<string, string> = {
   'loading tesseract core': 'Texterkennung wird geladen …',
@@ -26,17 +27,45 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
   const [error, setError] = useState('');
   const [text, setText] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [source, setSource] = useState<'ai' | 'ocr'>('ai');
+  const [notice, setNotice] = useState('');
 
   async function onFile(file: File | undefined) {
     if (!file) return;
     setError('');
+    setNotice('');
     setBusy({ text: 'Wird vorbereitet …', fraction: 0 });
     try {
-      const result = await recognizeText(file, (status, fraction) =>
-        setBusy({ text: STATUS_DE[status] ?? 'Wird verarbeitet …', fraction }),
-      );
-      setText(result);
-      setRows(findAppointments(result).map((a) => ({ ...a, created: false })));
+      let ai: FoundAppointment[] | null = null;
+      try {
+        setBusy({ text: 'KI liest das Dokument …', fraction: 0.5 });
+        ai = await scanWithAi(file);
+      } catch (e) {
+        // Ohne KI (nicht eingerichtet, Limit erreicht, offline) liest die Texterkennung im Gerät
+        const code = e instanceof ScanAiError ? e.code : 'failed';
+        setNotice(
+          {
+            not_configured:
+              'Die KI ist nicht eingerichtet – es wurde die einfache Texterkennung verwendet.',
+            rate_limit:
+              'Das KI-Limit ist erreicht – es wurde die einfache Texterkennung verwendet.',
+            offline: 'Du bist offline – es wurde die einfache Texterkennung verwendet.',
+            failed: 'Die KI hat nicht geantwortet – es wurde die einfache Texterkennung verwendet.',
+          }[code],
+        );
+      }
+      if (ai) {
+        setSource('ai');
+        setText('');
+        setRows(ai.map((a) => ({ ...a, created: false })));
+      } else {
+        setSource('ocr');
+        const result = await recognizeText(file, (status, fraction) =>
+          setBusy({ text: STATUS_DE[status] ?? 'Wird verarbeitet …', fraction }),
+        );
+        setText(result);
+        setRows(findAppointments(result).map((a) => ({ ...a, created: false })));
+      }
     } catch (e) {
       setError(
         e instanceof Error && /fetch|network|load/i.test(e.message)
@@ -72,8 +101,9 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
       {text === null && !busy && (
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-slate-700 dark:text-slate-300">
-            Fotografiere einen Brief oder eine Einladung. Die App liest den Text direkt auf deinem
-            Gerät und sucht nach Terminen. Das Bild wird nirgends hochgeladen.
+            Fotografiere einen Brief oder eine Einladung. Eine KI (Google Gemini, Gratis-Kontingent)
+            liest das Bild und sucht nach Terminen. Dafür wird das Foto kurz an Google gesendet und
+            nicht gespeichert. Ohne KI liest die App den Text auf deinem Gerät.
           </p>
           <button
             type="button"
@@ -102,6 +132,14 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
       )}
       {text !== null && (
         <div className="flex flex-col gap-3 pb-2">
+          {notice && (
+            <p role="status" className="text-xs text-amber-800 dark:text-amber-300">
+              {notice}
+            </p>
+          )}
+          {source === 'ai' && rows.length > 0 && (
+            <p className="text-xs text-slate-600 dark:text-slate-400">✨ Von der KI gelesen</p>
+          )}
           {rows.length === 0 ? (
             <p className="text-sm">Ich habe keinen Termin mit Datum gefunden.</p>
           ) : (
@@ -138,9 +176,11 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
                         className={`${field} w-28`}
                       />
                     </div>
-                    <p className="line-clamp-2 text-xs whitespace-pre-line text-slate-600 dark:text-slate-400">
-                      «{r.snippet}»
-                    </p>
+                    {r.snippet && (
+                      <p className="line-clamp-2 text-xs whitespace-pre-line text-slate-600 dark:text-slate-400">
+                        {source === 'ai' ? `ℹ️ ${r.snippet}` : `«${r.snippet}»`}
+                      </p>
+                    )}
                     <button
                       type="button"
                       disabled={r.created || !r.title.trim() || !r.date}
@@ -154,12 +194,14 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
               </ul>
             </>
           )}
-          <details className="text-xs text-slate-600 dark:text-slate-400">
-            <summary className="cursor-pointer py-1">Erkannten Text anzeigen</summary>
-            <pre className="mt-1 max-h-48 overflow-auto rounded-lg bg-slate-100 p-2 whitespace-pre-wrap dark:bg-slate-900">
-              {text || '(kein Text erkannt)'}
-            </pre>
-          </details>
+          {source === 'ocr' && (
+            <details className="text-xs text-slate-600 dark:text-slate-400">
+              <summary className="cursor-pointer py-1">Erkannten Text anzeigen</summary>
+              <pre className="mt-1 max-h-48 overflow-auto rounded-lg bg-slate-100 p-2 whitespace-pre-wrap dark:bg-slate-900">
+                {text || '(kein Text erkannt)'}
+              </pre>
+            </details>
+          )}
           <button
             type="button"
             onClick={() => {
