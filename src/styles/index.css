@@ -5,6 +5,17 @@
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+  --pink-page: #fde8f0;
+  --pink-surface: #fff5f9;
+}
+
+/* Hellmodus: zartes Rosa statt Weiss und Hellgrau (Dunkelmodus bleibt unverändert) */
+:root:not(.dark) body {
+  background-color: var(--pink-page);
+}
+:root:not(.dark) .bg-white,
+:root:not(.dark) .bg-slate-50 {
+  background-color: var(--pink-surface);
 }
 
 html,
