@@ -18,7 +18,7 @@ export function TaskSections({
       {sections.map((s) => (
         <section key={s.key} aria-label={s.title}>
           <h3
-            className={`mb-2 px-1 text-sm font-semibold uppercase tracking-wide ${s.tone === 'danger' ? 'text-red-600 dark:text-red-300' : 'text-slate-600 dark:text-slate-400'}`}
+            className={`mb-2 px-1 text-sm font-semibold uppercase tracking-wide ${s.tone === 'danger' ? 'text-red-800 dark:text-red-300' : 'text-slate-600 dark:text-slate-400'}`}
           >
             {s.title} <span className="font-normal">({s.tasks.length})</span>
           </h3>

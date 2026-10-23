@@ -27,7 +27,7 @@ export function applyTheme(choice: ThemeChoice) {
   document.documentElement.classList.toggle('dark', dark);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', dark ? '#0f172a' : '#fde8f0');
+    ?.setAttribute('content', dark ? '#0f172a' : '#f8cddf');
 }
 
 /** Wendet die Darstellung an (Profil-Einstellung hat Vorrang) und folgt dem System, solange «System» gewählt ist. */

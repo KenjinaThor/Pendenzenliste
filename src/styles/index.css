@@ -5,8 +5,8 @@
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
-  --pink-page: #fde8f0;
-  --pink-surface: #fff5f9;
+  --pink-page: #f8cddf;
+  --pink-surface: #fcdfeb;
 }
 
 /* Hellmodus: zartes Rosa statt Weiss und Hellgrau (Dunkelmodus bleibt unverändert) */

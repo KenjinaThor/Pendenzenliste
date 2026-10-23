@@ -30,7 +30,7 @@ export function NavContent() {
             <span className="flex-1">{v.label}</span>
             {n > 0 && (
               <span
-                className={`text-sm ${v.key === 'ueberfaellig' ? 'font-semibold text-red-600 dark:text-red-300' : 'text-slate-600 dark:text-slate-400'}`}
+                className={`text-sm ${v.key === 'ueberfaellig' ? 'font-semibold text-red-800 dark:text-red-300' : 'text-slate-600 dark:text-slate-400'}`}
               >
                 {n}
               </span>

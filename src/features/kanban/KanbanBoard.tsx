@@ -94,7 +94,7 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
                       {t.due_at && (
                         <span
                           className={
-                            isOverdue(t, now) ? 'font-medium text-red-600 dark:text-red-300' : ''
+                            isOverdue(t, now) ? 'font-medium text-red-800 dark:text-red-300' : ''
                           }
                         >
                           {formatDue(new Date(t.due_at), t.due_all_day, now)}

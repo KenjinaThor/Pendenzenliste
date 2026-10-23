@@ -238,7 +238,7 @@ export function CalendarViewPage() {
                   </button>
                   {holiday && (
                     <span
-                      className="truncate text-[10px] font-medium text-red-600 dark:text-red-300"
+                      className="truncate text-[10px] font-medium text-red-800 dark:text-red-300"
                       title={holiday}
                     >
                       {holiday}

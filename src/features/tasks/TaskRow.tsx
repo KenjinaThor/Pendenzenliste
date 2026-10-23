@@ -250,7 +250,7 @@ export function TaskRow({ task, showList = true }: { task: Task; showList?: bool
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-600 dark:text-slate-400">
             {task.due_at && (
-              <span className={overdue ? 'font-medium text-red-600 dark:text-red-300' : ''}>
+              <span className={overdue ? 'font-medium text-red-800 dark:text-red-300' : ''}>
                 {formatDue(new Date(task.due_at), task.due_all_day, now)}
               </span>
             )}
