@@ -300,6 +300,7 @@ test.describe('Push-Einstellungen', () => {
         },
       });
       Notification.requestPermission = async () => 'granted';
+      Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
     });
     await page.reload();
     await page.goto('/Pendenzenliste/#/einstellungen');
@@ -1126,4 +1127,24 @@ test('Speichern funktioniert auch, wenn die neue Datenbank-Funktion noch fehlt',
   await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect.poll(() => db.tasks[0].priority).toBe('high');
   await expect(page.getByText(/Speichern fehlgeschlagen/)).toBeHidden();
+});
+
+test('Dokument scannen erkennt Termine und legt eine Pendenz an', async ({ page }) => {
+  await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Start', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Dokument scannen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Dokument scannen' });
+  await dialog.getByLabel('Foto des Dokuments').setInputFiles('e2e/fixtures/brief.png');
+  await expect(dialog.getByRole('button', { name: 'Anlegen' }).first()).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(dialog.getByLabel('Datum').first()).toHaveValue('2026-11-03');
+  await expect(dialog.getByLabel('Uhrzeit').first()).toHaveValue('14:30');
+  await dialog.getByRole('button', { name: 'Anlegen' }).first().click();
+  await expect(dialog.getByText('✓ Angelegt')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Schliessen' }).click();
+  await page.goto('/Pendenzenliste/#/suche');
+  await page.getByPlaceholder('Titel, Notizen, Unteraufgaben …').fill('Ihr Termin');
+  await expect(page.getByText('Ihr Termin', { exact: true })).toBeVisible();
 });

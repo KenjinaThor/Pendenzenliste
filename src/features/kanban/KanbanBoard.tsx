@@ -90,7 +90,7 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
                     >
                       {t.title}
                     </span>
-                    <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-600 dark:text-slate-400">
+                    <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-600 dark:text-slate-300">
                       {t.due_at && (
                         <span
                           className={

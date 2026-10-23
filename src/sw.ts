@@ -6,6 +6,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst } from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<string | { url: string; revision: string | null }>;
@@ -14,6 +15,11 @@ declare let self: ServiceWorkerGlobalScope & {
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
+// Texterkennung (Dokument scannen): beim ersten Gebrauch laden, danach auch offline verfügbar
+registerRoute(
+  ({ url }) => url.pathname.startsWith(`${new URL(self.registration.scope).pathname}ocr/`),
+  new CacheFirst({ cacheName: 'ocr' }),
+);
 
 self.addEventListener('install', () => void self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));

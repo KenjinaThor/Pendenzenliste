@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useCreateTask, useLists, useSetTaskTags } from '../../lib/api';
 import { buildDue, toDateInput } from '../../lib/dates';
 import { parseQuickInput } from '../../lib/quickParse';
+import { ScanDialog } from './ScanDialog';
 import { usePermissions } from '../sharing/usePermissions';
 
 /**
@@ -16,6 +17,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   const perms = usePermissions();
   const writable = lists.filter((l) => perms.canEdit(l.id));
   const [text, setText] = useState('');
+  const [scanning, setScanning] = useState(false);
 
   const people = useMemo(
     () => [
@@ -78,31 +80,52 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   }
 
   return (
-    <form onSubmit={onSubmit} className="px-4 pb-3">
-      <input
-        aria-label="Pendenz schnell erfassen"
-        disabled={disabled}
-        placeholder={disabled ? 'Lade …' : today ? 'Neue Pendenz für heute …' : 'Neue Pendenz …'}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        enterKeyHint="done"
-        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm placeholder:text-slate-500"
-      />
-      {text.trim() && parsed.chips.length > 0 && (
-        <ul aria-label="Erkannt" className="mt-2 flex flex-wrap gap-1.5 text-xs">
-          {parsed.chips.map((c, i) => (
-            <li
-              key={`${c.kind}-${i}`}
-              className="rounded-full bg-indigo-100 px-2.5 py-1 font-medium text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100"
-            >
-              {c.label}
-            </li>
-          ))}
-        </ul>
+    <>
+      <form onSubmit={onSubmit} className="px-4 pb-3">
+        <div className="flex gap-2">
+          <input
+            aria-label="Pendenz schnell erfassen"
+            disabled={disabled}
+            placeholder={
+              disabled ? 'Lade …' : today ? 'Neue Pendenz für heute …' : 'Neue Pendenz …'
+            }
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            enterKeyHint="done"
+            className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm placeholder:text-slate-500"
+          />
+          <button
+            type="button"
+            aria-label="Dokument scannen"
+            title="Dokument scannen"
+            disabled={disabled}
+            onClick={() => setScanning(true)}
+            className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-white text-xl shadow-sm disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800"
+          >
+            📷
+          </button>
+        </div>
+        {text.trim() && parsed.chips.length > 0 && (
+          <ul aria-label="Erkannt" className="mt-2 flex flex-wrap gap-1.5 text-xs">
+            {parsed.chips.map((c, i) => (
+              <li
+                key={`${c.kind}-${i}`}
+                className="rounded-full bg-indigo-100 px-2.5 py-1 font-medium text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100"
+              >
+                {c.label}
+              </li>
+            ))}
+          </ul>
+        )}
+        {text.trim() && !parsed.title && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            Es fehlt noch ein Titel.
+          </p>
+        )}
+      </form>
+      {scanning && defaultList() && (
+        <ScanDialog listId={defaultList()!} onClose={() => setScanning(false)} />
       )}
-      {text.trim() && !parsed.title && (
-        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Es fehlt noch ein Titel.</p>
-      )}
-    </form>
+    </>
   );
 }

@@ -16,7 +16,10 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['ocr/**'],
+      },
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Pendenzen',
