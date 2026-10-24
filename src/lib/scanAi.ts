@@ -7,7 +7,7 @@ import type { FoundAppointment } from './docScan';
 export class ScanAiError extends Error {
   constructor(
     message: string,
-    readonly code: 'not_configured' | 'rate_limit' | 'offline' | 'failed',
+    readonly code: 'not_configured' | 'rate_limit' | 'offline' | 'failed' | 'declined',
   ) {
     super(message);
   }

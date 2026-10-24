@@ -89,6 +89,10 @@ export async function mockSupabase(page: Page) {
       body: JSON.stringify(body),
     });
 
+  // Die Update-Info («Neu in der App») soll in Tests nicht dazwischenfunken
+  await page.addInitScript(
+    () => localStorage.getItem('changelogSeen') ?? localStorage.setItem('changelogSeen', 'off'),
+  );
   await page.route(`${SUPABASE_URL}/**`, async (route) => {
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });

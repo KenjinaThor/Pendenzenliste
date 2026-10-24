@@ -23,6 +23,7 @@ interface Row extends FoundAppointment {
 export function ScanDialog({ listId, onClose }: { listId: string; onClose: () => void }) {
   const create = useCreateTask();
   const input = useRef<HTMLInputElement>(null);
+  const wantAi = useRef(true);
   const [busy, setBusy] = useState<{ text: string; fraction: number } | null>(null);
   const [error, setError] = useState('');
   const [text, setText] = useState<string | null>(null);
@@ -38,21 +39,25 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
     try {
       let ai: FoundAppointment[] | null = null;
       try {
+        if (!wantAi.current) throw new ScanAiError('Ohne KI gewählt', 'declined');
         setBusy({ text: 'KI liest das Dokument …', fraction: 0.5 });
         ai = await scanWithAi(file);
       } catch (e) {
         // Ohne KI (nicht eingerichtet, Limit erreicht, offline) liest die Texterkennung im Gerät
         const code = e instanceof ScanAiError ? e.code : 'failed';
-        setNotice(
-          {
-            not_configured:
-              'Die KI ist nicht eingerichtet – es wurde die einfache Texterkennung verwendet.',
-            rate_limit:
-              'Das KI-Limit ist erreicht – es wurde die einfache Texterkennung verwendet.',
-            offline: 'Du bist offline – es wurde die einfache Texterkennung verwendet.',
-            failed: 'Die KI hat nicht geantwortet – es wurde die einfache Texterkennung verwendet.',
-          }[code],
-        );
+        if (code !== 'declined')
+          setNotice(
+            {
+              not_configured:
+                'Die KI ist nicht eingerichtet – es wurde die einfache Texterkennung verwendet.',
+              rate_limit:
+                'Das KI-Limit ist erreicht – es wurde die einfache Texterkennung verwendet.',
+              offline: 'Du bist offline – es wurde die einfache Texterkennung verwendet.',
+              declined: '',
+              failed:
+                'Die KI hat nicht geantwortet – es wurde die einfache Texterkennung verwendet.',
+            }[code],
+          );
       }
       if (ai) {
         setSource('ai');
@@ -101,16 +106,34 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
       {text === null && !busy && (
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm text-slate-700 dark:text-slate-300">
-            Fotografiere einen Brief oder eine Einladung. Eine KI (Google Gemini, Gratis-Kontingent)
-            liest das Bild und sucht nach Terminen. Dafür wird das Foto kurz an Google gesendet und
-            nicht gespeichert. Ohne KI liest die App den Text auf deinem Gerät.
+            Fotografiere einen Brief oder eine Einladung und wähle, wie er gelesen werden soll:
           </p>
           <button
             type="button"
-            onClick={() => input.current?.click()}
-            className="h-12 rounded-xl bg-brand-600 font-semibold text-white active:bg-brand-700"
+            onClick={() => {
+              wantAi.current = true;
+              input.current?.click();
+            }}
+            className="rounded-xl bg-brand-600 px-4 py-3 text-left text-white active:bg-brand-700"
           >
-            📷 Foto aufnehmen oder wählen
+            <span className="block font-semibold">✨ Mit KI lesen (genauer)</span>
+            <span className="block text-xs text-indigo-100">
+              Google Gemini, Gratis-Kontingent. Das Foto wird kurz an Google gesendet und nicht
+              gespeichert.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              wantAi.current = false;
+              input.current?.click();
+            }}
+            className="rounded-xl border border-slate-300 px-4 py-3 text-left dark:border-slate-600"
+          >
+            <span className="block font-semibold">📱 Nur auf diesem Gerät lesen</span>
+            <span className="block text-xs text-slate-600 dark:text-slate-400">
+              Das Foto verlässt dein Gerät nicht. Weniger genau, funktioniert auch offline.
+            </span>
           </button>
         </div>
       )}

@@ -1135,11 +1135,13 @@ test('Dokument scannen erkennt Termine und legt eine Pendenz an', async ({ page 
   await expect(page.getByText('Start', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Dokument scannen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Dokument scannen' });
-  await dialog.getByLabel('Foto des Dokuments').setInputFiles('e2e/fixtures/brief.png');
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: /Nur auf diesem Gerät lesen/ }).click();
+  await (await chooser).setFiles('e2e/fixtures/brief.png');
   await expect(dialog.getByRole('button', { name: 'Anlegen' }).first()).toBeVisible({
     timeout: 60_000,
   });
-  await expect(dialog.getByText(/KI ist nicht eingerichtet/)).toBeVisible();
+  await expect(dialog.getByText(/nicht eingerichtet/)).toBeHidden();
   await expect(dialog.getByLabel('Datum').first()).toHaveValue('2026-11-03');
   await expect(dialog.getByLabel('Uhrzeit').first()).toHaveValue('14:30');
   await dialog.getByRole('button', { name: 'Anlegen' }).first().click();
@@ -1161,11 +1163,40 @@ test('Dokument scannen: KI-Ergebnis wird angezeigt und angelegt', async ({ page 
   await expect(page.getByText('Start', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Dokument scannen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Dokument scannen' });
-  await dialog.getByLabel('Foto des Dokuments').setInputFiles('e2e/fixtures/brief.png');
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: /Mit KI lesen/ }).click();
+  await (await chooser).setFiles('e2e/fixtures/brief.png');
   await expect(dialog.getByText('✨ Von der KI gelesen')).toBeVisible({ timeout: 30_000 });
   await expect(dialog.getByLabel('Titel')).toHaveValue('Zahnarzt Dr. Meier');
   await expect(dialog.getByLabel('Datum')).toHaveValue('2026-11-12');
   await expect(dialog.getByLabel('Uhrzeit')).toHaveValue('09:30');
   await dialog.getByRole('button', { name: 'Anlegen' }).click();
   await expect(dialog.getByText('✓ Angelegt')).toBeVisible();
+});
+
+test('Update-Info erscheint einmal nach einem Update', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('changelogSeen', '2000-01-01'));
+  await page.reload();
+  const dialog = page.getByRole('dialog', { name: 'Neu in der App' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading').first()).toBeVisible();
+  await dialog.getByRole('button', { name: 'Verstanden' }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('dialog', { name: 'Neu in der App' })).toBeHidden();
+});
+
+test('Dokument scannen: ohne eingerichtete KI wird auf die Geräte-Erkennung ausgewichen', async ({
+  page,
+}) => {
+  await page.getByLabel('Pendenz schnell erfassen').fill('Start');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Start', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Dokument scannen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Dokument scannen' });
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: /Mit KI lesen/ }).click();
+  await (await chooser).setFiles('e2e/fixtures/brief.png');
+  await expect(dialog.getByText(/KI ist nicht eingerichtet/)).toBeVisible({ timeout: 60_000 });
+  await expect(dialog.getByLabel('Datum').first()).toHaveValue('2026-11-03');
 });

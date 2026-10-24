@@ -10,6 +10,7 @@ import { InstallHint } from '../features/onboarding/InstallHint';
 import { Shortcuts, SHOW_SHORTCUTS_EVENT } from '../features/shortcuts/Shortcuts';
 import { EditorProvider, useEditor } from '../features/tasks/EditorContext';
 import { SelectionProvider } from '../features/tasks/SelectionContext';
+import { WhatsNew } from '../components/WhatsNew';
 import { NavContent } from './NavContent';
 import { SnackbarProvider } from '../components/Snackbar';
 import { toDateInput } from '../lib/dates';
@@ -75,6 +76,7 @@ export function AppShell() {
       <EditorProvider>
         <SelectionProvider>
           <Shortcuts />
+          <WhatsNew />
           <div className="flex h-full pt-[var(--safe-top)]">
             <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-slate-200 p-3 md:block dark:border-slate-700">
               <div className="mb-4 flex items-center gap-2 px-3 pt-2">
