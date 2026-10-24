@@ -56,21 +56,24 @@ const store: FeedStore = {
       .not('due_at', 'is', null);
     if (error) throw error;
 
-    const tasks: IcsTask[] = (rows ?? []).map((t) => ({
-      id: t.id,
-      title: t.title,
-      notes_md: t.notes_md ?? '',
-      due_at: t.due_at,
-      due_all_day: t.due_all_day,
-      duration_min: t.duration_min,
-      priority: t.priority,
-      rrule: t.rrule,
-      updated_at: t.updated_at,
-      list_name: names.get(t.list_id),
-      subtasks: [...(t.subtasks ?? [])]
-        .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
-        .map((s: { title: string; done: boolean }) => ({ title: s.title, done: s.done })),
-    }));
+    // Pendenzen, die bewusst nicht im Kalender erscheinen sollen (Spalte fehlt bei älteren Datenbanken = ja)
+    const tasks: IcsTask[] = (rows ?? [])
+      .filter((t) => t.in_calendar !== false)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        notes_md: t.notes_md ?? '',
+        due_at: t.due_at,
+        due_all_day: t.due_all_day,
+        duration_min: t.duration_min,
+        priority: t.priority,
+        rrule: t.rrule,
+        updated_at: t.updated_at,
+        list_name: names.get(t.list_id),
+        subtasks: [...(t.subtasks ?? [])]
+          .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
+          .map((s: { title: string; done: boolean }) => ({ title: s.title, done: s.done })),
+      }));
     return { timezone, tasks };
   },
 };

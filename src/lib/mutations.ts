@@ -70,6 +70,7 @@ const SERVER_FIELDS = new Set([
   'focus_date',
   'deleted_at',
   'position',
+  'in_calendar',
 ]);
 
 async function updateTask({ id, patch, ts }: UpdateTaskVars) {
@@ -91,7 +92,11 @@ async function updateTask({ id, patch, ts }: UpdateTaskVars) {
 }
 
 async function createTask({ task }: CreateTaskVars) {
-  const { error } = await supabase.from('tasks').insert(task);
+  // «im Kalender» nur senden, wenn es vom Standard abweicht (so läuft die App auch vor der Datenbank-Erweiterung)
+  const { in_calendar: inCalendar, ...rest } = task as typeof task & { in_calendar?: boolean };
+  const { error } = await supabase
+    .from('tasks')
+    .insert(inCalendar === false ? { ...rest, in_calendar: false } : rest);
   if (error && error.code !== DUPLICATE) throw error;
 }
 

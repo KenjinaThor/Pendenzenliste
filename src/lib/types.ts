@@ -25,6 +25,8 @@ export interface Task {
   repeat_after_days: number | null;
   /** Tag (YYYY-MM-DD), an dem die Pendenz im Tagesfokus «Meine 3» steht */
   focus_date: string | null;
+  /** erscheint im Kalender-Abo (fehlt bei älteren Datenbanken = ja) */
+  in_calendar?: boolean;
   completed_at: string | null;
   deleted_at: string | null;
   position: number;
@@ -139,6 +141,8 @@ export interface MyProfile {
   canton: string;
   theme: 'system' | 'light' | 'dark';
   daily_digest_time: string | null;
+  /** Standard für neue Pendenzen: im Kalender-Abo anzeigen (fehlt bei älteren Datenbanken = ja) */
+  calendar_default?: boolean;
 }
 
 export interface SavedFilter {

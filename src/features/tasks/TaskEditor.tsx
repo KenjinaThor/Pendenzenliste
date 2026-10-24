@@ -23,6 +23,7 @@ import { changedFields } from '../../lib/taskDiff';
 import { NO_REPEAT, fieldsFromForm, formFromTask, type RepeatForm } from '../../lib/repeatForm';
 import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
+import { useCalendarDefault } from '../settings/useCalendarDefault';
 import { usePermissions } from '../sharing/usePermissions';
 import { ActivitySection } from './ActivitySection';
 import { AttachmentsSection } from './AttachmentsSection';
@@ -97,6 +98,10 @@ export function TaskEditor({
   const [status, setStatus] = useState<Status>(existing?.status ?? 'open');
   const [draftSubtasks, setDraftSubtasks] = useState<string[]>(startTemplate?.subtasks ?? []);
   const [newSubtask, setNewSubtask] = useState('');
+  // Kalender-Abo: Standard aus den Einstellungen, hier pro Pendenz änderbar
+  const calendarDefault = useCalendarDefault();
+  const [chosenInCalendar, setInCalendar] = useState<boolean | null>(null);
+  const inCalendar = chosenInCalendar ?? existing?.in_calendar ?? calendarDefault;
 
   function applyTemplate(payload: TemplatePayload) {
     setTitle(payload.title);
@@ -155,6 +160,8 @@ export function TaskEditor({
       status,
       assignee_id: effectiveAssignee || null,
       ...fieldsFromForm(repeat, date ? new Date(`${date}T00:00:00`) : null),
+      // bei bestehenden Pendenzen nur senden, wenn die Auswahl geändert wurde
+      ...(existing && chosenInCalendar === null ? {} : { in_calendar: inCalendar }),
     };
     if (existing) {
       const patch = changedFields(existing, values);
@@ -379,6 +386,16 @@ export function TaskEditor({
               </div>
             )}
           </div>
+
+          <label className="flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={inCalendar}
+              onChange={(e) => setInCalendar(e.target.checked)}
+              className="h-5 w-5 accent-indigo-600"
+            />
+            📆 Im Kalender anzeigen
+          </label>
 
           <RepeatSection
             value={repeat}

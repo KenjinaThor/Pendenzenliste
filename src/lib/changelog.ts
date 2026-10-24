@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-2',
+    title: 'Kalender: du bestimmst, was im Kalender erscheint',
+    items: [
+      'Neu in den Einstellungen: «Neue Pendenzen standardmässig im Kalender anzeigen» (ein/aus).',
+      'Beim Erfassen gibt es die Auswahl «📆 Im Kalender anzeigen». Sie startet mit deinem Standard und lässt sich pro Pendenz ändern.',
+      'Gilt für das Kalender-Abo (iPhone, Google, Outlook). Bereits erfasste Pendenzen bleiben im Kalender.',
+    ],
+  },
+  {
     id: '2026-10-24',
     title: 'Foto-Scan: du wählst, ob die KI mitliest',
     items: [

@@ -3,6 +3,7 @@ import { useCreateTask, useLists, useSetTaskTags } from '../../lib/api';
 import { buildDue, toDateInput } from '../../lib/dates';
 import { parseQuickInput } from '../../lib/quickParse';
 import { ScanDialog } from './ScanDialog';
+import { useCalendarDefault } from '../settings/useCalendarDefault';
 import { usePermissions } from '../sharing/usePermissions';
 
 /**
@@ -18,6 +19,9 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   const writable = lists.filter((l) => perms.canEdit(l.id));
   const [text, setText] = useState('');
   const [scanning, setScanning] = useState(false);
+  const calendarDefault = useCalendarDefault();
+  const [chosenInCalendar, setInCalendar] = useState<boolean | null>(null);
+  const inCalendar = chosenInCalendar ?? calendarDefault;
 
   const people = useMemo(
     () => [
@@ -60,6 +64,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
     const list = parsed.listId ?? defaultList();
     if (!parsed.title || !list) return;
     setText('');
+    setInCalendar(null); // nächste Pendenz wieder mit dem Standard aus den Einstellungen
     const date = parsed.date ?? (today ? toDateInput(new Date()) : null);
     const due = date ? buildDue(date, parsed.time ?? '') : null;
     // Zuweisung nur, wenn die Person Mitglied der Liste ist
@@ -75,6 +80,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
       ...(parsed.priority ? { priority: parsed.priority } : {}),
       ...(assignee ? { assignee_id: assignee } : {}),
       ...(parsed.repeat ?? {}),
+      in_calendar: inCalendar,
     });
     if (parsed.tags.length) setTags.mutate({ taskId: id, listId: list, names: parsed.tags });
   }
@@ -105,6 +111,17 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
             📷
           </button>
         </div>
+        {text.trim() && (
+          <label className="mt-2 flex items-center gap-2 text-xs font-medium">
+            <input
+              type="checkbox"
+              checked={inCalendar}
+              onChange={(e) => setInCalendar(e.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            📆 Im Kalender anzeigen
+          </label>
+        )}
         {text.trim() && parsed.chips.length > 0 && (
           <ul aria-label="Erkannt" className="mt-2 flex flex-wrap gap-1.5 text-xs">
             {parsed.chips.map((c, i) => (

@@ -1200,3 +1200,48 @@ test('Dokument scannen: ohne eingerichtete KI wird auf die Geräte-Erkennung aus
   await expect(dialog.getByText(/KI ist nicht eingerichtet/)).toBeVisible({ timeout: 60_000 });
   await expect(dialog.getByLabel('Datum').first()).toHaveValue('2026-11-03');
 });
+
+test('Kalender-Standard in den Einstellungen gilt für neue Pendenzen und ist pro Pendenz änderbar', async ({
+  page,
+}) => {
+  await page.goto('/Pendenzenliste/#/einstellungen');
+  const standard = page.getByRole('checkbox', { name: /standardmässig im Kalender/ });
+  await expect(standard).toBeChecked();
+  await standard.uncheck();
+  await expect
+    .poll(() => (db.profile as { calendar_default?: boolean }).calendar_default)
+    .toBe(false);
+
+  // Editor: Standard «aus» wird übernommen, lässt sich aber ändern
+  await page.goto('/Pendenzenliste/#/heute');
+  await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+  let dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('checkbox', { name: /Im Kalender anzeigen/ })).not.toBeChecked();
+  await dialog.getByLabel('Titel').fill('Nicht im Kalender');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(() => db.tasks.find((t) => t.title === 'Nicht im Kalender')?.in_calendar)
+    .toBe(false);
+
+  await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Titel').fill('Doch im Kalender');
+  await dialog.getByRole('checkbox', { name: /Im Kalender anzeigen/ }).check();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(() => db.tasks.find((t) => t.title === 'Doch im Kalender')?.in_calendar)
+    .toBe(true);
+
+  // Schnelleingabe: gleiche Auswahl
+  const quick = page.getByLabel('Pendenz schnell erfassen');
+  await quick.fill('Schnell erfasst');
+  const box = page.getByRole('checkbox', { name: /Im Kalender anzeigen/ });
+  await expect(box).not.toBeChecked();
+  await box.check();
+  await quick.press('Enter');
+  await expect
+    .poll(() => db.tasks.find((t) => t.title === 'Schnell erfasst')?.in_calendar)
+    .toBe(true);
+});

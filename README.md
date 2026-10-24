@@ -103,6 +103,10 @@ Actions → **Edge Functions deployen** → _Run workflow_. Danach geschieht das
 automatisch. Die Funktionen `calendar` (ICS-Feed) und `send-reminders` (Push) sind danach online; die Push-Schlüssel erzeugt
 `send-reminders` beim ersten Lauf selbst.
 
+### 5a. Nachträgliche Datenbank-Erweiterungen
+
+Neue Migrationsdateien in `supabase/migrations/` (Nummer höher als die zuletzt ausgeführte) im SQL Editor ausführen. Zuletzt: `20261027000007_calendar_choice.sql` (Kalender-Auswahl pro Pendenz).
+
 ### 5b. KI für «Dokument scannen» (optional)
 
 Ohne KI liest die App Fotos mit einer einfachen Texterkennung im Gerät. Besser ist das kostenlose Gemini-Modell von Google:

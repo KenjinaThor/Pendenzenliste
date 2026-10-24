@@ -169,6 +169,7 @@ export interface TaskInput {
   rrule?: string | null;
   repeat_mode?: 'fixed' | 'after_completion';
   repeat_after_days?: number | null;
+  in_calendar?: boolean;
 }
 
 type TaskPatch = Partial<Omit<Task, 'id' | 'subtasks' | 'tags'>>;
@@ -195,6 +196,7 @@ function draftTask(id: string, input: TaskInput): Task {
     repeat_mode: 'fixed',
     repeat_after_days: null,
     focus_date: null,
+    in_calendar: true,
     completed_at: null,
     deleted_at: null,
     position: 0,
@@ -757,7 +759,7 @@ export function useMyProfile(userId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, timezone, canton, theme, daily_digest_time')
+        .select('*') // «*»: funktioniert auch, solange neue Spalten in der Datenbank noch fehlen
         .eq('id', userId!)
         .maybeSingle();
       if (error) throw error;
@@ -772,7 +774,10 @@ export function useUpdateProfile(userId: string | undefined) {
   return useMutation({
     mutationFn: async (
       patch: Partial<
-        Pick<MyProfile, 'name' | 'timezone' | 'canton' | 'theme' | 'daily_digest_time'>
+        Pick<
+          MyProfile,
+          'name' | 'timezone' | 'canton' | 'theme' | 'daily_digest_time' | 'calendar_default'
+        >
       >,
     ) => {
       const { error } = await supabase.from('profiles').update(patch).eq('id', userId!);

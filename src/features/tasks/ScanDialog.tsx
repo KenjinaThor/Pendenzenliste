@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useCalendarDefault } from '../settings/useCalendarDefault';
 import { Sheet } from '../../components/Sheet';
 import { useCreateTask } from '../../lib/api';
 import { buildDue } from '../../lib/dates';
@@ -22,6 +23,7 @@ interface Row extends FoundAppointment {
 /** Dokument fotografieren oder aus den Fotos wählen und Termine daraus als Pendenzen übernehmen. */
 export function ScanDialog({ listId, onClose }: { listId: string; onClose: () => void }) {
   const create = useCreateTask();
+  const calendarDefault = useCalendarDefault();
   const input = useRef<HTMLInputElement>(null);
   const wantAi = useRef(true);
   const [busy, setBusy] = useState<{ text: string; fraction: number } | null>(null);
@@ -89,7 +91,12 @@ export function ScanDialog({ listId, onClose }: { listId: string; onClose: () =>
   function add(i: number) {
     const r = rows[i];
     if (!r.title.trim() || !r.date) return;
-    create({ list_id: listId, title: r.title.trim(), ...(buildDue(r.date, r.time ?? '') ?? {}) });
+    create({
+      list_id: listId,
+      title: r.title.trim(),
+      ...(buildDue(r.date, r.time ?? '') ?? {}),
+      in_calendar: calendarDefault,
+    });
     patch(i, { created: true });
   }
 

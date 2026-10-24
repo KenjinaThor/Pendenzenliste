@@ -439,6 +439,7 @@ export async function mockSupabase(page: Page) {
             updated_at: now,
             deleted_at: null,
             focus_date: null,
+            in_calendar: true, // Standard der Datenbank
             assignee_id: null,
             ...r,
           });
@@ -458,6 +459,7 @@ export async function mockSupabase(page: Page) {
           repeat_mode: 'fixed',
           repeat_after_days: null,
           focus_date: null,
+          in_calendar: true, // Standard der Datenbank
           completed_at: null,
           deleted_at: null,
           position: 0,

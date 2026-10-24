@@ -91,6 +91,27 @@ export function SettingsPage() {
           </div>
         </div>
       </section>
+      <section
+        aria-label="Kalender-Abo"
+        className="mt-4 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800"
+      >
+        <label className="flex items-start gap-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={profile?.calendar_default ?? true}
+            disabled={!profile}
+            onChange={(e) => updateProfile.mutate({ calendar_default: e.target.checked })}
+            className="mt-0.5 h-5 w-5 accent-indigo-600"
+          />
+          <span>
+            Neue Pendenzen standardmässig im Kalender anzeigen
+            <span className="mt-1 block text-xs font-normal text-slate-600 dark:text-slate-400">
+              Gilt für das Kalender-Abo (iPhone, Google, Outlook). Beim Erfassen kannst du es pro
+              Pendenz ändern. Bereits erfasste Pendenzen bleiben unverändert.
+            </span>
+          </span>
+        </label>
+      </section>
       <PushSettings />
       <a
         href="#/kalender"
