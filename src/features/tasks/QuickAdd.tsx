@@ -3,7 +3,7 @@ import { useCreateTask, useLists, useSetTaskTags } from '../../lib/api';
 import { buildDue, toDateInput } from '../../lib/dates';
 import { parseQuickInput } from '../../lib/quickParse';
 import { ScanDialog } from './ScanDialog';
-import { useCalendarDefault } from '../settings/useCalendarDefault';
+import { useAppSettings } from '../settings/useAppSettings';
 import { usePermissions } from '../sharing/usePermissions';
 
 /**
@@ -19,7 +19,8 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
   const writable = lists.filter((l) => perms.canEdit(l.id));
   const [text, setText] = useState('');
   const [scanning, setScanning] = useState(false);
-  const calendarDefault = useCalendarDefault();
+  const settings = useAppSettings();
+  const calendarDefault = settings.calendarDefault;
   const [chosenInCalendar, setInCalendar] = useState<boolean | null>(null);
   const inCalendar = chosenInCalendar ?? calendarDefault;
 
@@ -36,6 +37,7 @@ export function QuickAdd({ listId, today = false }: { listId?: string; today?: b
 
   function defaultList(): string | undefined {
     if (listId) return perms.canEdit(listId) ? listId : undefined;
+    if (settings.defaultListId) return settings.defaultListId;
     let last: string | null = null;
     try {
       last = localStorage.getItem('lastListId');

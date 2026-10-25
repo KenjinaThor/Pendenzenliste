@@ -143,6 +143,8 @@ export interface MyProfile {
   daily_digest_time: string | null;
   /** Standard für neue Pendenzen: im Kalender-Abo anzeigen (fehlt bei älteren Datenbanken = ja) */
   calendar_default?: boolean;
+  /** Standardliste für neue Pendenzen (fehlt bei älteren Datenbanken) */
+  default_list_id?: string | null;
 }
 
 export interface SavedFilter {

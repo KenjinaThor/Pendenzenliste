@@ -1245,3 +1245,132 @@ test('Kalender-Standard in den Einstellungen gilt für neue Pendenzen und ist pr
     .poll(() => db.tasks.find((t) => t.title === 'Schnell erfasst')?.in_calendar)
     .toBe(true);
 });
+
+test.describe('Daily-Shuffle', () => {
+  async function addTasks(page: import('@playwright/test').Page) {
+    for (const t of ['Wäsche waschen', 'Steuern prüfen', 'Mama anrufen']) {
+      await page.getByLabel('Pendenz schnell erfassen').fill(`${t} heute`);
+      await page.keyboard.press('Enter');
+      await expect(page.getByText(t, { exact: true })).toBeVisible();
+    }
+    await page
+      .getByRole('link', { name: /Daily-Shuffle|Shuffle/ })
+      .first()
+      .click();
+    await expect(page.getByRole('heading', { name: /Daily-Shuffle/ })).toBeVisible();
+  }
+
+  test('leerer Topf', async ({ page }) => {
+    await page.goto('/Pendenzenliste/#/shuffle');
+    await expect(page.getByText('Der Topf ist leer.')).toBeVisible();
+  });
+
+  test('Automat zieht eine Pendenz; sie lässt sich erledigen', async ({ page }) => {
+    await addTasks(page);
+    await expect(page.getByText('3 Pendenzen im Topf')).toBeVisible();
+    await page.getByRole('button', { name: /Hebel ziehen/ }).click();
+    const result = page.getByRole('article', { name: 'Gezogene Pendenz' });
+    await expect(result).toBeVisible({ timeout: 10_000 });
+    const title = await result.getByRole('heading').textContent();
+    expect(['Wäsche waschen', 'Steuern prüfen', 'Mama anrufen']).toContain(title);
+    await result.getByRole('button', { name: /Erledigt/ }).click();
+    await expect(result.getByText(/Erledigt – stark/)).toBeVisible();
+    await expect(page.getByText('2 Pendenzen im Topf')).toBeVisible();
+  });
+
+  test('Glücksrad zieht eine Pendenz', async ({ page }) => {
+    await addTasks(page);
+    await page.getByRole('button', { name: /Glücksrad/ }).click();
+    await page.getByRole('button', { name: /Rad drehen/ }).click();
+    await expect(page.getByRole('article', { name: 'Gezogene Pendenz' })).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
+  test('Rubbellos: freirubbeln deckt die Pendenz auf', async ({ page }) => {
+    await addTasks(page);
+    await page.getByRole('button', { name: /Rubbellos/ }).click();
+    await page.getByRole('button', { name: /Neues Los ziehen/ }).click();
+    const layer = page.getByTestId('scratch-layer');
+    await expect(layer).toBeVisible();
+    const box = (await layer.boundingBox())!;
+    for (let y = 10; y < box.height; y += 24) {
+      await page.mouse.move(box.x + 5, box.y + y);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width - 5, box.y + y, { steps: 12 });
+      await page.mouse.up();
+    }
+    await expect(page.getByRole('article', { name: 'Gezogene Pendenz' })).toBeVisible();
+    await expect(layer).toBeHidden();
+  });
+
+  test('ohne Animation (Bewegung reduzieren) sofort das Ergebnis', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await addTasks(page);
+    await page.getByRole('button', { name: /Hebel ziehen/ }).click();
+    await expect(page.getByRole('article', { name: 'Gezogene Pendenz' })).toBeVisible({
+      timeout: 2_000,
+    });
+  });
+});
+
+test('Standardliste aus den Einstellungen gilt für neue Pendenzen, bleibt aber änderbar', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await expect(page.getByRole('link', { name: /Persönlich/ })).toBeVisible(); // erste Liste abwarten
+  await page.getByRole('button', { name: /Neue Liste/ }).click();
+  await page.getByLabel('Name der Liste').fill('Garten');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Garten/ })).toBeVisible();
+
+  await page.goto('/Pendenzenliste/#/einstellungen');
+  const select = page.getByLabel('Standardliste');
+  await select.selectOption({ index: 1 }); // erste Liste (Persönlich)
+  await select.selectOption({ label: '📋 Garten' });
+  const gardenId = db.lists.find((l) => l.name === 'Garten')!.id as string;
+  await expect
+    .poll(() => (db.profile as { default_list_id?: string }).default_list_id)
+    .toBe(gardenId);
+
+  // Neue Pendenz im Editor: Standardliste vorgewählt, aber änderbar
+  await page.goto('/Pendenzenliste/#/heute');
+  await page.getByRole('button', { name: 'Neue Pendenz' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Liste')).toHaveValue(gardenId);
+  await dialog.getByLabel('Titel').fill('Rasen mähen');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => db.tasks.find((t) => t.title === 'Rasen mähen')?.list_id).toBe(gardenId);
+
+  // Schnelleingabe nimmt ebenfalls die Standardliste
+  await page.getByLabel('Pendenz schnell erfassen').fill('Hecke schneiden');
+  await page.getByLabel('Pendenz schnell erfassen').press('Enter');
+  await expect
+    .poll(() => db.tasks.find((t) => t.title === 'Hecke schneiden')?.list_id)
+    .toBe(gardenId);
+});
+
+test('Einstellungen werden ersatzweise auf dem Gerät gespeichert, wenn die Datenbank-Erweiterung fehlt', async ({
+  page,
+}) => {
+  await page.route('**/rest/v1/profiles*', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      return route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify({
+          code: 'PGRST204',
+          message: "Could not find the 'calendar_default' column of 'profiles' in the schema cache",
+        }),
+      });
+    }
+    return route.fallback();
+  });
+  await page.goto('/Pendenzenliste/#/einstellungen');
+  const box = page.getByRole('checkbox', { name: /standardmässig im Kalender/ });
+  await box.uncheck();
+  await expect(page.getByText(/nur auf diesem Gerät/)).toBeVisible();
+  await expect(box).not.toBeChecked();
+});

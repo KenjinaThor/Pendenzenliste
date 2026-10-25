@@ -10,6 +10,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25',
+    title: 'Daily-Shuffle, Standardliste und neue Hintergrundfarben',
+    items: [
+      'Neuer Reiter «Shuffle» (🎰): Das Glück entscheidet, welche Pendenz als Nächstes dran ist. Du wählst zwischen Spielautomat, Glücksrad und Rubbellos. Wahlweise aus «Heute & überfällig» oder allen offenen Pendenzen, auf Wunsch mit Bevorzugung wichtiger Pendenzen.',
+      'Neu in den Einstellungen: eine Standardliste für neue Pendenzen. Beim Erfassen lässt sie sich pro Pendenz ändern.',
+      'Die Kalender-Auswahl lässt sich jetzt zuverlässig speichern; fehlt noch die Datenbank-Erweiterung, merkt sich die App die Einstellung auf dem Gerät und sagt dir Bescheid.',
+      'Hellmodus: am PC bleibt der Hintergrund rosa, auf dem iPhone ist er ein sanftes Grau.',
+    ],
+  },
+  {
     id: '2026-10-24-2',
     title: 'Kalender: du bestimmst, was im Kalender erscheint',
     items: [

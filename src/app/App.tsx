@@ -37,6 +37,9 @@ const TemplatesPage = lazy(() =>
 const CalendarPage = lazy(() =>
   import('../features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })),
 );
+const ShufflePage = lazy(() =>
+  import('../features/shuffle/ShufflePage').then((m) => ({ default: m.ShufflePage })),
+);
 const SmartListPage = lazy(() =>
   import('../features/filters/SmartListPage').then((m) => ({ default: m.SmartListPage })),
 );
@@ -55,6 +58,7 @@ function Authenticated() {
           <Route path="/liste/:id" element={<ListPage />} />
           <Route path="/filter/:id" element={<SmartListPage />} />
           <Route path="/kalenderansicht" element={<CalendarViewPage />} />
+          <Route path="/shuffle" element={<ShufflePage />} />
           <Route path="/statistik" element={<StatsPage />} />
           <Route path="/listen" element={<ListsPage />} />
           <Route path="/suche" element={<SearchPage />} />

@@ -5,17 +5,26 @@
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
-  --pink-page: #f8cddf;
-  --pink-surface: #fcdfeb;
+  /* Hellmodus auf dem Handy/Tablet (Touch): sanftes Grau */
+  --tint-page: #e6e7ec;
+  --tint-surface: #f3f4f7;
 }
 
-/* Hellmodus: zartes Rosa statt Weiss und Hellgrau (Dunkelmodus bleibt unverändert) */
+/* Hellmodus am PC/Laptop (Maus): Rosa */
+@media (hover: hover) and (pointer: fine) {
+  :root {
+    --tint-page: #f8cddf;
+    --tint-surface: #fcdfeb;
+  }
+}
+
+/* Hellmodus: Farbton statt Weiss und Hellgrau (Dunkelmodus bleibt unverändert) */
 :root:not(.dark) body {
-  background-color: var(--pink-page);
+  background-color: var(--tint-page);
 }
 :root:not(.dark) .bg-white,
 :root:not(.dark) .bg-slate-50 {
-  background-color: var(--pink-surface);
+  background-color: var(--tint-surface);
 }
 
 html,
@@ -30,4 +39,34 @@ body {
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
   overscroll-behavior-y: none;
+}
+
+/* Daily-Shuffle: Konfetti und blinkende Lämpchen */
+@keyframes confetti-fall {
+  from {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(110vh) rotate(540deg);
+    opacity: 0;
+  }
+}
+.confetti-piece {
+  animation: confetti-fall 2.4s ease-in forwards;
+}
+@keyframes bulb {
+  50% {
+    opacity: 0.25;
+  }
+}
+.bulb-blink {
+  animation: bulb 0.5s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti,
+  .bulb-blink {
+    animation: none;
+    display: none;
+  }
 }

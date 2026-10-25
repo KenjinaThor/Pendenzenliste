@@ -122,6 +122,12 @@ export function AppShell() {
                   </span>
                   Demnächst
                 </NavLink>
+                <NavLink to="/shuffle" className={tab}>
+                  <span aria-hidden className="text-xl">
+                    🎰
+                  </span>
+                  Shuffle
+                </NavLink>
                 <NavLink to="/listen" className={tab}>
                   <span aria-hidden className="text-xl">
                     📋

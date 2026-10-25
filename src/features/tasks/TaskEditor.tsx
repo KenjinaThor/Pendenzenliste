@@ -23,7 +23,7 @@ import { changedFields } from '../../lib/taskDiff';
 import { NO_REPEAT, fieldsFromForm, formFromTask, type RepeatForm } from '../../lib/repeatForm';
 import { downloadTaskIcs } from '../../lib/singleIcs';
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '../../lib/types';
-import { useCalendarDefault } from '../settings/useCalendarDefault';
+import { useAppSettings } from '../settings/useAppSettings';
 import { usePermissions } from '../sharing/usePermissions';
 import { ActivitySection } from './ActivitySection';
 import { AttachmentsSection } from './AttachmentsSection';
@@ -59,6 +59,7 @@ export function TaskEditor({
   const deleteSubtask = useDeleteSubtask();
   const snackbar = useSnackbar();
   const perms = usePermissions();
+  const settings = useAppSettings();
 
   const { data: templates = [] } = useTemplates();
   const saveTemplate = useSaveTemplate();
@@ -72,7 +73,7 @@ export function TaskEditor({
   // Auswahl der Person; solange nichts gewählt ist, gilt die erste Liste (auch wenn sie erst später lädt)
   const [chosenListId, setListId] = useState(existing?.list_id ?? defaults?.list_id ?? '');
   const [assigneeId, setAssigneeId] = useState(existing?.assignee_id ?? '');
-  const listId = chosenListId || lists[0]?.id || '';
+  const listId = chosenListId || (!existing && settings.defaultListId) || lists[0]?.id || '';
   // Leser dürfen nichts ändern; in Listen ohne Schreibrecht kann nichts neu angelegt werden
   const readOnly = existing ? !perms.canEdit(existing.list_id) : false;
   const members = perms.membersOf(listId);
@@ -99,7 +100,7 @@ export function TaskEditor({
   const [draftSubtasks, setDraftSubtasks] = useState<string[]>(startTemplate?.subtasks ?? []);
   const [newSubtask, setNewSubtask] = useState('');
   // Kalender-Abo: Standard aus den Einstellungen, hier pro Pendenz änderbar
-  const calendarDefault = useCalendarDefault();
+  const calendarDefault = settings.calendarDefault;
   const [chosenInCalendar, setInCalendar] = useState<boolean | null>(null);
   const inCalendar = chosenInCalendar ?? existing?.in_calendar ?? calendarDefault;
 

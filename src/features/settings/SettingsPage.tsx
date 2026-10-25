@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useMyProfile, useUpdateProfile } from '../../lib/api';
+import { useLists, useMyProfile, useUpdateProfile } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
+import { usePermissions } from '../sharing/usePermissions';
+import { useAppSettings } from './useAppSettings';
 import { PushSettings } from './PushSettings';
 import { storedTheme, type ThemeChoice } from './ThemeProvider';
 
@@ -11,6 +13,9 @@ export function SettingsPage() {
   const user = session?.user;
   const { data: profile } = useMyProfile(user?.id);
   const updateProfile = useUpdateProfile(user?.id);
+  const app = useAppSettings();
+  const { data: lists = [] } = useLists();
+  const perms = usePermissions();
   const name =
     profile?.name || ((user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? '');
   const [draftName, setDraftName] = useState<string | null>(null);
@@ -92,15 +97,36 @@ export function SettingsPage() {
         </div>
       </section>
       <section
-        aria-label="Kalender-Abo"
+        aria-label="Standards für neue Pendenzen"
         className="mt-4 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800"
       >
-        <label className="flex items-start gap-3 text-sm font-medium">
+        <h3 className="mb-3 text-sm font-semibold">Standards für neue Pendenzen</h3>
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Standardliste
+          <select
+            aria-label="Standardliste"
+            value={app.defaultListId ?? ''}
+            onChange={(e) => app.setDefaultList(e.target.value || null)}
+            className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900"
+          >
+            <option value="">Zuletzt verwendete Liste</option>
+            {lists
+              .filter((l) => perms.canEdit(l.id))
+              .map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.emoji} {l.name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          Neue Pendenzen landen hier. Beim Erfassen kannst du die Liste pro Pendenz ändern.
+        </p>
+        <label className="mt-4 flex items-start gap-3 text-sm font-medium">
           <input
             type="checkbox"
-            checked={profile?.calendar_default ?? true}
-            disabled={!profile}
-            onChange={(e) => updateProfile.mutate({ calendar_default: e.target.checked })}
+            checked={app.calendarDefault}
+            onChange={(e) => app.setCalendarDefault(e.target.checked)}
             className="mt-0.5 h-5 w-5 accent-indigo-600"
           />
           <span>
@@ -111,6 +137,13 @@ export function SettingsPage() {
             </span>
           </span>
         </label>
+        {app.localOnly && (
+          <p role="status" className="mt-3 rounded-lg bg-amber-100 p-3 text-xs text-amber-900">
+            Gespeichert, aber nur auf diesem Gerät: Die Datenbank-Erweiterung fehlt noch (SQL-Datei
+            «20261028000008_settings_defaults.sql» in Supabase ausführen). Danach gelten die
+            Einstellungen auf allen Geräten.
+          </p>
+        )}
       </section>
       <PushSettings />
       <a

@@ -98,6 +98,7 @@ for (const scheme of ['light', 'dark'] as const) {
       ['Vorlagen', '#/vorlagen'],
       ['Import und Export', '#/daten'],
       ['Mitteilungen', '#/mitteilungen'],
+      ['Daily-Shuffle', '#/shuffle'],
       ['Papierkorb', '#/papierkorb'],
     ] as const) {
       test(name, async ({ page }) => {

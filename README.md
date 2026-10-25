@@ -105,7 +105,7 @@ automatisch. Die Funktionen `calendar` (ICS-Feed) und `send-reminders` (Push) si
 
 ### 5a. Nachträgliche Datenbank-Erweiterungen
 
-Neue Migrationsdateien in `supabase/migrations/` (Nummer höher als die zuletzt ausgeführte) im SQL Editor ausführen. Zuletzt: `20261027000007_calendar_choice.sql` (Kalender-Auswahl pro Pendenz).
+Neue Migrationsdateien in `supabase/migrations/` (Nummer höher als die zuletzt ausgeführte) im SQL Editor ausführen. Zuletzt: `20261028000008_settings_defaults.sql` (Kalender-Auswahl pro Pendenz und Standardliste; enthält alles aus `…0007…` und darf mehrfach laufen).
 
 ### 5b. KI für «Dokument scannen» (optional)
 

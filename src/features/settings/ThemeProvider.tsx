@@ -15,6 +15,10 @@ export function storedTheme(): ThemeChoice {
   }
 }
 
+/** Farbe der Browserleiste im Hellmodus: Rosa am PC, Grau auf Touch-Geräten (siehe styles/index.css) */
+const lightColor = () =>
+  window.matchMedia('(hover: hover) and (pointer: fine)').matches ? '#f8cddf' : '#e6e7ec';
+
 export function applyTheme(choice: ThemeChoice) {
   try {
     localStorage.setItem(KEY, choice);
@@ -27,7 +31,7 @@ export function applyTheme(choice: ThemeChoice) {
   document.documentElement.classList.toggle('dark', dark);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', dark ? '#0f172a' : '#f8cddf');
+    ?.setAttribute('content', dark ? '#0f172a' : lightColor());
 }
 
 /** Wendet die Darstellung an (Profil-Einstellung hat Vorrang) und folgt dem System, solange «System» gewählt ist. */

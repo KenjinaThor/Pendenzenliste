@@ -776,7 +776,13 @@ export function useUpdateProfile(userId: string | undefined) {
       patch: Partial<
         Pick<
           MyProfile,
-          'name' | 'timezone' | 'canton' | 'theme' | 'daily_digest_time' | 'calendar_default'
+          | 'name'
+          | 'timezone'
+          | 'canton'
+          | 'theme'
+          | 'daily_digest_time'
+          | 'calendar_default'
+          | 'default_list_id'
         >
       >,
     ) => {

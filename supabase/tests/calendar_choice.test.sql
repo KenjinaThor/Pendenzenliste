@@ -27,3 +27,16 @@ select test.ok('Ältere Änderung an in_calendar verliert', not (select in_calen
 select public.complete_recurring_task(:'t2', now() + interval '1 day') as clone \gset
 select test.ok('Folge-Pendenz übernimmt die Kalender-Auswahl',
   (select count(*) = 1 and bool_and(not in_calendar) from public.tasks where id = :'clone'));
+
+-- Migration 8 darf nach Migration 7 nochmals laufen und liefert zusätzlich die Standardliste
+reset role;
+\i supabase/migrations/20261028000008_settings_defaults.sql
+set role authenticated;
+select set_config('request.jwt.claim.sub', :cora, false), set_config('request.jwt.claim.email', 'cora@x.ch', false) \gset
+update public.profiles set default_list_id = :'list' where id = :cora;
+select test.ok('Standardliste lässt sich im Profil speichern',
+  (select default_list_id = :'list'::uuid from public.profiles where id = :cora));
+reset role;
+delete from public.lists where id = :'list';
+select test.ok('Wird die Standardliste gelöscht, ist sie im Profil leer',
+  (select default_list_id is null from public.profiles where id = :cora));

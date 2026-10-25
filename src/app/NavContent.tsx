@@ -73,6 +73,9 @@ export function NavContent() {
         <span aria-hidden>＋</span> Neue Liste
       </button>
       <div className="mt-4 border-t border-slate-200 pt-2 dark:border-slate-700">
+        <NavLink to="/shuffle" className={link}>
+          <span aria-hidden>🎰</span> Daily-Shuffle
+        </NavLink>
         <NavLink to="/kalenderansicht" className={link}>
           <span aria-hidden>📅</span> Kalender
         </NavLink>
