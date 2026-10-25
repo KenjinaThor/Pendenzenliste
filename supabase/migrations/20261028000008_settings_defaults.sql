@@ -76,3 +76,6 @@ begin
   update public.tasks set status = 'done', rrule = null, repeat_after_days = null where id = p_task;
   return v_new;
 end $$;
+
+-- Die Datenbank-Schnittstelle (PostgREST) soll die neuen Spalten sofort kennen
+notify pgrst, 'reload schema';

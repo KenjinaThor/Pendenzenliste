@@ -7,6 +7,10 @@ import { registerMutationDefaults } from './mutations';
 /** Fehler beim Speichern (z. B. keine Berechtigung mehr) sichtbar machen – auch für Änderungen aus der Warteschlange. */
 const mutationCache = new MutationCache({
   onError: (error) => {
+    // Fehlt eine optionale Profil-Spalte (Migration 8), speichert die App die Einstellung selbst auf dem Gerät und
+    // weist in den Einstellungen darauf hin – eine zusätzliche Fehlermeldung wäre irreführend.
+    if (/column of 'profiles'|calendar_default|default_list_id/.test((error as Error).message))
+      return;
     window.dispatchEvent(new CustomEvent(SYNC_ERROR_EVENT, { detail: (error as Error).message }));
   },
 });

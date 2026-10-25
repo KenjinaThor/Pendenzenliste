@@ -17,6 +17,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Neu in den Einstellungen: eine Standardliste für neue Pendenzen. Beim Erfassen lässt sie sich pro Pendenz ändern.',
       'Die Kalender-Auswahl lässt sich jetzt zuverlässig speichern; fehlt noch die Datenbank-Erweiterung, merkt sich die App die Einstellung auf dem Gerät und sagt dir Bescheid.',
       'Hellmodus: am PC bleibt der Hintergrund rosa, auf dem iPhone ist er ein sanftes Grau.',
+      'Fehlt die Datenbank-Erweiterung noch, erscheint keine Fehlermeldung mehr beim Ändern der Standards; die App merkt sie sich auf dem Gerät.',
     ],
   },
   {
